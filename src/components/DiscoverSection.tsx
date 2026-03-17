@@ -47,7 +47,7 @@ export function DiscoverSection() {
                   <p className="text-sm text-muted-foreground">{a.role}</p>
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><MapPin size={12} /> {a.location}</span>
-                    <span className="flex items-center gap-1"><Star size={12} className="text-yellow-500" /> {a.rating}</span>
+                    <span className="flex items-center gap-1"><Star size={12} className="text-primary" /> {a.rating}</span>
                   </div>
                 </div>
               </div>
