@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -16,8 +17,8 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="container flex items-center justify-between h-16">
-        <a href="#" className="font-display text-xl font-bold tracking-tight">
-          <span className="text-gradient">inlivin</span>
+        <a href="#" className="font-display text-2xl font-extrabold tracking-tight text-foreground">
+          inlivin<span className="text-primary">.</span>
         </a>
 
         {/* Desktop */}
@@ -26,45 +27,47 @@ export function Navbar() {
             <a
               key={link.label}
               href={link.href}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors tracking-wide uppercase"
             >
               {link.label}
             </a>
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-2">
+          <ThemeToggle />
           <Button variant="ghost" size="sm">Sign In</Button>
           <Button variant="hero" size="sm">Get Started</Button>
         </div>
 
-        {/* Mobile toggle */}
-        <button className="md:hidden text-foreground" onClick={() => setOpen(!open)}>
-          {open ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="flex md:hidden items-center gap-2">
+          <ThemeToggle />
+          <button className="text-foreground" onClick={() => setOpen(!open)}>
+            {open ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </div>
 
-      {/* Mobile menu */}
       <AnimatePresence>
         {open && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass border-t border-border"
+            className="md:hidden border-t border-border bg-background"
           >
-            <div className="container py-4 flex flex-col gap-3">
+            <div className="container py-6 flex flex-col gap-1">
               {navLinks.map((link) => (
                 <a
                   key={link.label}
                   href={link.href}
-                  className="text-sm text-muted-foreground hover:text-foreground py-2"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground py-3 border-b border-border"
                   onClick={() => setOpen(false)}
                 >
                   {link.label}
                 </a>
               ))}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-4">
                 <Button variant="ghost" size="sm" className="flex-1">Sign In</Button>
                 <Button variant="hero" size="sm" className="flex-1">Get Started</Button>
               </div>
