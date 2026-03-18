@@ -1,25 +1,29 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Menu, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Menu, X, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
-  { label: "Features", href: "#features" },
-  { label: "Discover", href: "#discover" },
-  { label: "Community", href: "#community" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Features", href: "/#features" },
+  { label: "Discover", href: "/#discover" },
+  { label: "Community", href: "/#community" },
+  { label: "Pricing", href: "/#pricing" },
 ];
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="container flex items-center justify-between h-16">
-        <a href="#" className="font-display text-2xl font-extrabold tracking-tight text-foreground">
+        <Link to="/" className="font-display text-2xl font-extrabold tracking-tight text-foreground">
           inlivin<span className="text-primary">.</span>
-        </a>
+        </Link>
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-8">
@@ -36,8 +40,17 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-2">
           <ThemeToggle />
-          <Button variant="ghost" size="sm">Sign In</Button>
-          <Button variant="hero" size="sm">Get Started</Button>
+          {user ? (
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="gap-2">
+              <User size={16} />
+              {profile?.display_name || "Dashboard"}
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/login")}>Sign In</Button>
+              <Button variant="hero" size="sm" onClick={() => navigate("/register")}>Get Started</Button>
+            </>
+          )}
         </div>
 
         <div className="flex md:hidden items-center gap-2">
@@ -68,8 +81,16 @@ export function Navbar() {
                 </a>
               ))}
               <div className="flex gap-3 pt-4">
-                <Button variant="ghost" size="sm" className="flex-1">Sign In</Button>
-                <Button variant="hero" size="sm" className="flex-1">Get Started</Button>
+                {user ? (
+                  <Button variant="hero" size="sm" className="flex-1" onClick={() => { navigate("/dashboard"); setOpen(false); }}>
+                    Dashboard
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="ghost" size="sm" className="flex-1" onClick={() => { navigate("/login"); setOpen(false); }}>Sign In</Button>
+                    <Button variant="hero" size="sm" className="flex-1" onClick={() => { navigate("/register"); setOpen(false); }}>Get Started</Button>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import heroImg from "@/assets/hero-abstract.jpg";
 
 const marqueeItems = [
@@ -9,11 +10,12 @@ const marqueeItems = [
 ];
 
 export function HeroSection() {
+  const navigate = useNavigate();
+
   return (
     <section className="relative min-h-screen flex flex-col justify-center pt-16 overflow-hidden">
       <div className="container relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-          {/* Left — Copy */}
           <div className="max-w-xl">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -55,15 +57,16 @@ export function HeroSection() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="flex flex-wrap gap-3"
             >
-              <Button variant="hero" size="lg">
+              <Button variant="hero" size="lg" onClick={() => navigate("/register")}>
                 Start Creating <ArrowRight size={18} />
               </Button>
-              <Button variant="hero-outline" size="lg">
+              <Button variant="hero-outline" size="lg" onClick={() => {
+                document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+              }}>
                 See How It Works
               </Button>
             </motion.div>
 
-            {/* Stats row */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -83,7 +86,6 @@ export function HeroSection() {
             </motion.div>
           </div>
 
-          {/* Right — Image */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -94,7 +96,6 @@ export function HeroSection() {
               <img src={heroImg} alt="Abstract collaboration art" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
             </div>
-            {/* Floating badge */}
             <div className="absolute -bottom-4 left-4 lg:left-0 bg-card border border-border rounded-xl px-5 py-3 shadow-lg">
               <div className="text-xs text-muted-foreground">Active now</div>
               <div className="font-display font-bold text-foreground">2,847 creators online</div>
@@ -103,7 +104,6 @@ export function HeroSection() {
         </div>
       </div>
 
-      {/* Marquee */}
       <div className="mt-24 border-t border-b border-border py-5 overflow-hidden">
         <div className="animate-marquee flex gap-8 whitespace-nowrap">
           {[...marqueeItems, ...marqueeItems].map((item, i) => (
