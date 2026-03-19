@@ -15,6 +15,11 @@ import DashboardPage from "./pages/DashboardPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import MessagesPage from "./pages/MessagesPage";
 import ExplorePage from "./pages/ExplorePage";
+import FeedPage from "./pages/FeedPage";
+import EventsPage from "./pages/EventsPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import BookmarksPage from "./pages/BookmarksPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -41,9 +46,14 @@ const App = () => (
               }
             >
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/feed" element={<FeedPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/explore" element={<ExplorePage />} />
+              <Route path="/events" element={<EventsPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/bookmarks" element={<BookmarksPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
