@@ -2,14 +2,18 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Compass, Search, User, MapPin, Filter } from "lucide-react";
+import { Compass, Search, User, MapPin, Filter, UserPlus, UserCheck, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export default function ExplorePage() {
   const [search, setSearch] = useState("");
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: artists = [], isLoading } = useQuery({
     queryKey: ["explore-artists", search],
@@ -33,6 +37,52 @@ export default function ExplorePage() {
     enabled: !!user,
   });
 
+  // Get who the user is following
+  const { data: following = [] } = useQuery({
+    queryKey: ["my-following"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("connections")
+        .select("following_id")
+        .eq("follower_id", user!.id);
+      return (data ?? []).map(c => c.following_id);
+    },
+    enabled: !!user,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: async (artistUserId: string) => {
+      const { error } = await supabase.from("connections").insert({
+        follower_id: user!.id,
+        following_id: artistUserId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-following"] });
+      toast.success("Following!");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const unfollowMutation = useMutation({
+    mutationFn: async (artistUserId: string) => {
+      const { error } = await supabase
+        .from("connections")
+        .delete()
+        .eq("follower_id", user!.id)
+        .eq("following_id", artistUserId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-following"] });
+      toast.success("Unfollowed");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const isFollowing = (userId: string) => following.includes(userId);
+
   return (
     <div className="p-6 md:p-8 max-w-5xl">
       <div className="mb-8">
@@ -42,7 +92,6 @@ export default function ExplorePage() {
         <p className="text-muted-foreground mt-1 text-sm">Discover artists, producers, and creatives.</p>
       </div>
 
-      {/* Search & Filters */}
       <div className="flex gap-3 mb-6">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -58,7 +107,6 @@ export default function ExplorePage() {
         </Button>
       </div>
 
-      {/* Results */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -80,7 +128,7 @@ export default function ExplorePage() {
           {artists.map((artist) => (
             <Card
               key={artist.id}
-              className="border-border/50 hover:border-primary/20 transition-all group cursor-pointer"
+              className="border-border/50 hover:border-primary/20 transition-all group"
             >
               <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-3">
@@ -91,7 +139,7 @@ export default function ExplorePage() {
                       <User size={20} className="text-muted-foreground" />
                     )}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h3 className="font-display font-bold text-sm text-foreground truncate">
                       {artist.display_name || "Artist"}
                     </h3>
@@ -112,7 +160,7 @@ export default function ExplorePage() {
                 )}
 
                 {artist.skills && artist.skills.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 mb-3">
                     {(artist.skills as string[]).slice(0, 3).map((s) => (
                       <span
                         key={s}
@@ -128,6 +176,37 @@ export default function ExplorePage() {
                     )}
                   </div>
                 )}
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-2 border-t border-border/50">
+                  {isFollowing(artist.user_id) ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-8 text-xs"
+                      onClick={() => unfollowMutation.mutate(artist.user_id)}
+                    >
+                      <UserCheck size={12} className="mr-1" /> Following
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="hero"
+                      size="sm"
+                      className="flex-1 h-8 text-xs"
+                      onClick={() => followMutation.mutate(artist.user_id)}
+                    >
+                      <UserPlus size={12} className="mr-1" /> Follow
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => navigate("/messages")}
+                  >
+                    <MessageCircle size={12} />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
