@@ -5,14 +5,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Heart, MessageCircle, User, Bookmark, BookmarkCheck, Send, Globe, FolderOpen
+  Heart, MessageCircle, User, Bookmark, BookmarkCheck, Send, Globe, FolderOpen,
+  TrendingUp, Flame, Share2, MoreHorizontal, Eye
 } from "lucide-react";
 import { useState } from "react";
 
 export default function FeedPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"latest" | "trending">("latest");
 
   // Public projects feed
   const { data: projects = [], isLoading } = useQuery({
@@ -23,7 +26,7 @@ export default function FeedPage() {
         .select("*")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
       return data ?? [];
     },
     enabled: !!user,
@@ -44,7 +47,6 @@ export default function FeedPage() {
     enabled: projects.length > 0,
   });
 
-  // Likes
   const { data: myLikes = [] } = useQuery({
     queryKey: ["my-likes"],
     queryFn: async () => {
@@ -67,7 +69,6 @@ export default function FeedPage() {
     enabled: projects.length > 0,
   });
 
-  // Bookmarks
   const { data: myBookmarks = [] } = useQuery({
     queryKey: ["my-bookmarks"],
     queryFn: async () => {
@@ -77,7 +78,6 @@ export default function FeedPage() {
     enabled: !!user,
   });
 
-  // Comments
   const { data: commentCounts = {} } = useQuery({
     queryKey: ["feed-comment-counts", projects.map(p => p.id)],
     queryFn: async () => {
@@ -89,6 +89,30 @@ export default function FeedPage() {
       return counts;
     },
     enabled: projects.length > 0,
+  });
+
+  // Fetch comments for expanded project
+  const [expandedComments, setExpandedComments] = useState<string | null>(null);
+  const { data: commentsData = [] } = useQuery({
+    queryKey: ["comments-for", expandedComments],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("comments")
+        .select("*")
+        .eq("project_id", expandedComments!)
+        .order("created_at", { ascending: true })
+        .limit(20);
+      // Fetch comment author profiles
+      const comments = data ?? [];
+      const authorIds = [...new Set(comments.map(c => c.user_id))];
+      const profiles: Record<string, any> = {};
+      for (const uid of authorIds) {
+        const { data: prof } = await supabase.from("profiles").select("display_name, avatar_url").eq("user_id", uid).single();
+        profiles[uid] = prof;
+      }
+      return comments.map(c => ({ ...c, profile: profiles[c.user_id] }));
+    },
+    enabled: !!expandedComments,
   });
 
   const likeMutation = useMutation({
@@ -119,35 +143,70 @@ export default function FeedPage() {
     },
   });
 
-  // Comment inline
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
 
   const commentMutation = useMutation({
     mutationFn: async ({ projectId, content }: { projectId: string; content: string }) => {
-      const { error } = await supabase.from("comments").insert({
-        user_id: user!.id,
-        project_id: projectId,
-        content,
-      });
+      const { error } = await supabase.from("comments").insert({ user_id: user!.id, project_id: projectId, content });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       setCommentText("");
       setCommentingOn(null);
       queryClient.invalidateQueries({ queryKey: ["feed-comment-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["comments-for", vars.projectId] });
       toast.success("Comment added!");
     },
     onError: (err: any) => toast.error(err.message),
   });
 
+  const handleShare = (project: any) => {
+    navigator.clipboard.writeText(`${window.location.origin}/feed#${project.id}`);
+    toast.success("Link copied!");
+  };
+
+  // Sort by engagement for trending
+  const trendingProjects = [...projects].sort((a, b) => {
+    const aScore = (likeCounts[a.id] ?? 0) + (commentCounts[a.id] ?? 0) * 2;
+    const bScore = (likeCounts[b.id] ?? 0) + (commentCounts[b.id] ?? 0) * 2;
+    return bScore - aScore;
+  });
+
+  const displayProjects = activeTab === "trending" ? trendingProjects : projects;
+
+  const timeAgo = (date: string) => {
+    const diff = Date.now() - new Date(date).getTime();
+    if (diff < 60000) return "just now";
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+    return new Date(date).toLocaleDateString();
+  };
+
   return (
-    <div className="p-6 md:p-8 max-w-2xl">
-      <div className="mb-8">
+    <div className="p-6 md:p-8 max-w-2xl mx-auto">
+      <div className="mb-6">
         <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground">
           Feed<span className="text-primary">.</span>
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">Latest from the creative community.</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 p-1 bg-secondary/50 rounded-lg w-fit">
+        <button
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === "latest" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setActiveTab("latest")}
+        >
+          <Globe size={14} className="inline mr-1.5" /> Latest
+        </button>
+        <button
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === "trending" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setActiveTab("trending")}
+        >
+          <Flame size={14} className="inline mr-1.5" /> Trending
+        </button>
       </div>
 
       {isLoading ? (
@@ -157,120 +216,178 @@ export default function FeedPage() {
               <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-full bg-muted" />
-                  <div className="space-y-1.5 flex-1">
-                    <div className="h-4 bg-muted rounded w-1/4" />
-                    <div className="h-3 bg-muted rounded w-1/6" />
-                  </div>
+                  <div className="space-y-1.5 flex-1"><div className="h-4 bg-muted rounded w-1/4" /><div className="h-3 bg-muted rounded w-1/6" /></div>
                 </div>
-                <div className="h-40 bg-muted rounded" />
+                <div className="h-48 bg-muted rounded-xl" />
               </CardContent>
             </Card>
           ))}
         </div>
-      ) : projects.length > 0 ? (
-        <div className="space-y-4">
-          {projects.map(project => {
-            const creator = creators[project.user_id];
-            const liked = myLikes.includes(project.id);
-            const bookmarked = myBookmarks.includes(project.id);
+      ) : displayProjects.length > 0 ? (
+        <div className="space-y-5">
+          <AnimatePresence>
+            {displayProjects.map((project, idx) => {
+              const creator = creators[project.user_id];
+              const liked = myLikes.includes(project.id);
+              const bookmarked = myBookmarks.includes(project.id);
+              const lc = likeCounts[project.id] ?? 0;
+              const cc = commentCounts[project.id] ?? 0;
+              const showComments = expandedComments === project.id;
 
-            return (
-              <Card key={project.id} className="border-border/50">
-                <CardContent className="p-5">
-                  {/* Author */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
-                      {creator?.avatar_url ? (
-                        <img src={creator.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <User size={16} className="text-muted-foreground" />
+              return (
+                <motion.div
+                  key={project.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05, type: "spring", stiffness: 300, damping: 30 }}
+                >
+                  <Card className="border-border/50 hover:border-primary/10 transition-all overflow-hidden">
+                    <CardContent className="p-0">
+                      {/* Author Header */}
+                      <div className="flex items-center gap-3 p-4 pb-3">
+                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden ring-2 ring-border">
+                          {creator?.avatar_url ? (
+                            <img src={creator.avatar_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User size={16} className="text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold">{creator?.display_name || "Artist"}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {creator?.username ? `@${creator.username} · ` : ""}{timeAgo(project.created_at)}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                          <MoreHorizontal size={16} />
+                        </Button>
+                      </div>
+
+                      {/* Cover Image */}
+                      {project.cover_url && (
+                        <div className="bg-secondary mx-4 rounded-xl overflow-hidden">
+                          <img src={project.cover_url} alt="" className="w-full max-h-[400px] object-cover" />
+                        </div>
                       )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{creator?.display_name || "Artist"}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {creator?.username ? `@${creator.username}` : ""} · {new Date(project.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Cover */}
-                  {project.cover_url && (
-                    <div className="rounded-lg overflow-hidden mb-3 bg-secondary">
-                      <img src={project.cover_url} alt="" className="w-full h-48 object-cover" />
-                    </div>
-                  )}
+                      {/* Content */}
+                      <div className="px-4 pt-3">
+                        <h3 className="font-display font-bold text-base mb-1">{project.title}</h3>
+                        {project.description && (
+                          <p className="text-sm text-muted-foreground mb-2 line-clamp-3">{project.description}</p>
+                        )}
 
-                  {/* Content */}
-                  <h3 className="font-display font-bold text-base mb-1">{project.title}</h3>
-                  {project.description && (
-                    <p className="text-sm text-muted-foreground mb-3">{project.description}</p>
-                  )}
+                        {project.tags && (project.tags as string[]).length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {(project.tags as string[]).map(t => (
+                              <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">#{t}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                  {project.tags && (project.tags as string[]).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {(project.tags as string[]).map(t => (
-                        <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">{t}</span>
-                      ))}
-                    </div>
-                  )}
+                      {/* Actions */}
+                      <div className="flex items-center gap-0.5 px-2 py-2 border-t border-border/30 mx-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`h-9 text-xs gap-1.5 rounded-full ${liked ? "text-destructive" : ""}`}
+                          onClick={() => likeMutation.mutate(project.id)}
+                        >
+                          <motion.div animate={liked ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
+                            <Heart size={16} fill={liked ? "currentColor" : "none"} />
+                          </motion.div>
+                          {lc > 0 && lc}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 text-xs gap-1.5 rounded-full"
+                          onClick={() => {
+                            setExpandedComments(showComments ? null : project.id);
+                            setCommentingOn(showComments ? null : project.id);
+                          }}
+                        >
+                          <MessageCircle size={16} /> {cc > 0 && cc}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 text-xs gap-1.5 rounded-full"
+                          onClick={() => handleShare(project)}
+                        >
+                          <Share2 size={16} />
+                        </Button>
+                        <div className="flex-1" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-9 w-9 rounded-full ${bookmarked ? "text-primary" : ""}`}
+                          onClick={() => bookmarkMutation.mutate(project.id)}
+                        >
+                          {bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                        </Button>
+                      </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 pt-2 border-t border-border/50">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-8 text-xs gap-1 ${liked ? "text-destructive" : ""}`}
-                      onClick={() => likeMutation.mutate(project.id)}
-                    >
-                      <Heart size={14} fill={liked ? "currentColor" : "none"} /> {likeCounts[project.id] ?? 0}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs gap-1"
-                      onClick={() => setCommentingOn(commentingOn === project.id ? null : project.id)}
-                    >
-                      <MessageCircle size={14} /> {commentCounts[project.id] ?? 0}
-                    </Button>
-                    <div className="flex-1" />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={`h-8 w-8 ${bookmarked ? "text-primary" : ""}`}
-                      onClick={() => bookmarkMutation.mutate(project.id)}
-                    >
-                      {bookmarked ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
-                    </Button>
-                  </div>
-
-                  {/* Comment input */}
-                  {commentingOn === project.id && (
-                    <form
-                      className="flex gap-2 mt-2"
-                      onSubmit={e => {
-                        e.preventDefault();
-                        if (commentText.trim()) {
-                          commentMutation.mutate({ projectId: project.id, content: commentText.trim() });
-                        }
-                      }}
-                    >
-                      <Input
-                        value={commentText}
-                        onChange={e => setCommentText(e.target.value)}
-                        placeholder="Write a comment..."
-                        className="flex-1 h-9 text-sm"
-                        autoFocus
-                      />
-                      <Button variant="hero" size="icon" className="h-9 w-9 shrink-0" type="submit">
-                        <Send size={14} />
-                      </Button>
-                    </form>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                      {/* Comments Section */}
+                      <AnimatePresence>
+                        {showComments && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-4 pb-4 space-y-3">
+                              {commentsData.length > 0 && (
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                  {commentsData.map(comment => (
+                                    <div key={comment.id} className="flex gap-2">
+                                      <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center overflow-hidden shrink-0 mt-0.5">
+                                        {comment.profile?.avatar_url ? (
+                                          <img src={comment.profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                          <User size={10} className="text-muted-foreground" />
+                                        )}
+                                      </div>
+                                      <div className="flex-1 bg-secondary/50 rounded-xl px-3 py-2">
+                                        <p className="text-xs font-medium">{comment.profile?.display_name || "Artist"}</p>
+                                        <p className="text-xs text-muted-foreground">{comment.content}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <form
+                                className="flex gap-2"
+                                onSubmit={e => {
+                                  e.preventDefault();
+                                  if (commentText.trim()) {
+                                    commentMutation.mutate({ projectId: project.id, content: commentText.trim() });
+                                  }
+                                }}
+                              >
+                                <Input
+                                  value={commentingOn === project.id ? commentText : ""}
+                                  onChange={e => { setCommentText(e.target.value); setCommentingOn(project.id); }}
+                                  placeholder="Write a comment..."
+                                  className="flex-1 h-9 text-sm rounded-full"
+                                  autoFocus
+                                />
+                                <Button variant="hero" size="icon" className="h-9 w-9 shrink-0 rounded-full" type="submit">
+                                  <Send size={14} />
+                                </Button>
+                              </form>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       ) : (
         <Card className="border-border/50 border-dashed">
@@ -279,9 +396,7 @@ export default function FeedPage() {
               <Globe size={28} className="text-primary" />
             </div>
             <h3 className="font-display font-bold text-lg text-foreground mb-1">No posts yet</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              Create a public project and it will appear in the feed for everyone to see.
-            </p>
+            <p className="text-sm text-muted-foreground max-w-sm">Create a public project and it will appear in the feed.</p>
           </CardContent>
         </Card>
       )}
