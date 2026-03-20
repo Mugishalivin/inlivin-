@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  FolderOpen, Plus, Music, Image, Video, MoreVertical,
+  FolderOpen, Plus, Music, Image, Video, MoreVertical, User,
   Edit, Trash2, Eye, Globe, Lock, Heart, MessageCircle, Upload,
   UserPlus, Users, Search, X, Shield, Pen, EyeIcon
 } from "lucide-react";
