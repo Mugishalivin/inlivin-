@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Compass, Search, User, MapPin, Filter, UserPlus, UserCheck, MessageCircle } from "lucide-react";
+import { Compass, Search, MapPin, Filter, UserPlus, UserCheck, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
+import { UserAvatar, UserName } from "@/components/UserLink";
 
 export default function ExplorePage() {
   const [search, setSearch] = useState("");
@@ -37,7 +39,6 @@ export default function ExplorePage() {
     enabled: !!user,
   });
 
-  // Get who the user is following
   const { data: following = [] } = useQuery({
     queryKey: ["my-following"],
     queryFn: async () => {
@@ -81,18 +82,35 @@ export default function ExplorePage() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const startChat = async (otherUserId: string) => {
+    const { data: myConvos } = await supabase.from("conversation_participants").select("conversation_id").eq("user_id", user!.id);
+    if (myConvos?.length) {
+      for (const mc of myConvos) {
+        const { data: other } = await supabase.from("conversation_participants").select("id").eq("conversation_id", mc.conversation_id).eq("user_id", otherUserId).single();
+        if (other) { navigate("/messages"); return; }
+      }
+    }
+    const { data: convo, error } = await supabase.from("conversations").insert({}).select().single();
+    if (error) { toast.error(error.message); return; }
+    await supabase.from("conversation_participants").insert([
+      { conversation_id: convo.id, user_id: user!.id },
+      { conversation_id: convo.id, user_id: otherUserId },
+    ]);
+    navigate("/messages");
+  };
+
   const isFollowing = (userId: string) => following.includes(userId);
 
   return (
     <div className="p-6 md:p-8 max-w-5xl">
-      <div className="mb-8">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground">
           Explore<span className="text-primary">.</span>
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">Discover artists, producers, and creatives.</p>
-      </div>
+      </motion.div>
 
-      <div className="flex gap-3 mb-6">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex gap-3 mb-6">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -105,7 +123,7 @@ export default function ExplorePage() {
         <Button variant="outline" size="icon" className="h-11 w-11 shrink-0">
           <Filter size={16} />
         </Button>
-      </div>
+      </motion.div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -125,108 +143,80 @@ export default function ExplorePage() {
         </div>
       ) : artists.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {artists.map((artist) => (
-            <Card
-              key={artist.id}
-              className="border-border/50 hover:border-primary/20 transition-all group"
-            >
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center overflow-hidden shrink-0">
-                    {artist.avatar_url ? (
-                      <img src={artist.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <User size={20} className="text-muted-foreground" />
-                    )}
+          {artists.map((artist, idx) => (
+            <motion.div key={artist.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}>
+              <Card className="border-border/50 hover:border-primary/20 transition-all group">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <UserAvatar userId={artist.user_id} avatarUrl={artist.avatar_url} size={12} />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-display font-bold text-sm text-foreground truncate">
+                        <UserName userId={artist.user_id} name={artist.display_name} />
+                      </h3>
+                      {artist.username && (
+                        <p className="text-[11px] text-muted-foreground">@{artist.username}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-display font-bold text-sm text-foreground truncate">
-                      {artist.display_name || "Artist"}
-                    </h3>
-                    {artist.username && (
-                      <p className="text-[11px] text-muted-foreground">@{artist.username}</p>
-                    )}
-                  </div>
-                </div>
 
-                {artist.location && (
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mb-2">
-                    <MapPin size={10} /> {artist.location}
-                  </p>
-                )}
-
-                {artist.bio && (
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{artist.bio}</p>
-                )}
-
-                {artist.skills && artist.skills.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {(artist.skills as string[]).slice(0, 3).map((s) => (
-                      <span
-                        key={s}
-                        className="text-[10px] px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                    {(artist.skills as string[]).length > 3 && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">
-                        +{(artist.skills as string[]).length - 3}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-2 border-t border-border/50">
-                  {isFollowing(artist.user_id) ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 h-8 text-xs"
-                      onClick={() => unfollowMutation.mutate(artist.user_id)}
-                    >
-                      <UserCheck size={12} className="mr-1" /> Following
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="hero"
-                      size="sm"
-                      className="flex-1 h-8 text-xs"
-                      onClick={() => followMutation.mutate(artist.user_id)}
-                    >
-                      <UserPlus size={12} className="mr-1" /> Follow
-                    </Button>
+                  {artist.location && (
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 mb-2">
+                      <MapPin size={10} /> {artist.location}
+                    </p>
                   )}
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => navigate("/messages")}
-                  >
-                    <MessageCircle size={12} />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+
+                  {artist.bio && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{artist.bio}</p>
+                  )}
+
+                  {artist.skills && artist.skills.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {(artist.skills as string[]).slice(0, 3).map((s) => (
+                        <span key={s} className="text-[10px] px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">{s}</span>
+                      ))}
+                      {(artist.skills as string[]).length > 3 && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">
+                          +{(artist.skills as string[]).length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2 border-t border-border/50">
+                    {isFollowing(artist.user_id) ? (
+                      <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => unfollowMutation.mutate(artist.user_id)}>
+                        <UserCheck size={12} className="mr-1" /> Following
+                      </Button>
+                    ) : (
+                      <Button variant="hero" size="sm" className="flex-1 h-8 text-xs" onClick={() => followMutation.mutate(artist.user_id)}>
+                        <UserPlus size={12} className="mr-1" /> Follow
+                      </Button>
+                    )}
+                    <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => startChat(artist.user_id)}>
+                      <MessageCircle size={12} />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
       ) : (
-        <Card className="border-border/50 border-dashed">
-          <CardContent className="py-16 flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
-              <Compass size={28} className="text-accent" />
-            </div>
-            <h3 className="font-display font-bold text-lg text-foreground mb-1">
-              {search ? "No artists found" : "Be the first!"}
-            </h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              {search
-                ? "Try different keywords or clear the search."
-                : "No other artists have joined yet. Share inlivin with your creative community!"}
-            </p>
-          </CardContent>
-        </Card>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Card className="border-border/50 border-dashed">
+            <CardContent className="py-16 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
+                <Compass size={28} className="text-accent" />
+              </div>
+              <h3 className="font-display font-bold text-lg text-foreground mb-1">
+                {search ? "No artists found" : "Be the first!"}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                {search ? "Try different keywords or clear the search." : "No other artists have joined yet. Share inlivin with your creative community!"}
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
     </div>
   );

@@ -31,14 +31,14 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     const { error } = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: window.location.origin + "/dashboard",
     });
     if (error) toast.error("Google sign in failed");
   };
 
   const handleAppleLogin = async () => {
     const { error } = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: window.location.origin,
+      redirect_uri: window.location.origin + "/dashboard",
     });
     if (error) toast.error("Apple sign in failed");
   };

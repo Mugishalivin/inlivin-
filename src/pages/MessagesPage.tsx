@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -291,19 +292,19 @@ export default function MessagesPage() {
     return (
       <div className="flex flex-col h-[calc(100vh-4rem)]">
         {/* Header */}
-        <div className="flex items-center gap-3 p-4 border-b border-border bg-card/50 backdrop-blur-sm">
+          <div className="flex items-center gap-3 p-4 border-b border-border bg-card/50 backdrop-blur-sm">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setActiveConvo(null)}>
             <ArrowLeft size={16} />
           </Button>
-          <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden ring-2 ring-primary/20">
+          <Link to={`/profile/${otherUser?.user_id}`} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden ring-2 ring-primary/20 hover:ring-primary/40 transition-all">
             {otherUser?.profile?.avatar_url ? (
               <img src={otherUser.profile.avatar_url} alt="" className="w-full h-full object-cover" />
             ) : (
               <User size={16} className="text-muted-foreground" />
             )}
-          </div>
+          </Link>
           <div className="flex-1">
-            <h3 className="font-display font-bold text-sm">{otherUser?.profile?.display_name || "Artist"}</h3>
+            <Link to={`/profile/${otherUser?.user_id}`} className="font-display font-bold text-sm hover:text-primary transition-colors">{otherUser?.profile?.display_name || "Artist"}</Link>
             {otherUser?.profile?.username && (
               <p className="text-[11px] text-muted-foreground">@{otherUser.profile.username}</p>
             )}
