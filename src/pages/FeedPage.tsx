@@ -7,17 +7,20 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Heart, MessageCircle, User, Bookmark, BookmarkCheck, Send, Globe, FolderOpen,
-  TrendingUp, Flame, Share2, MoreHorizontal, Eye
+  Heart, MessageCircle, Bookmark, BookmarkCheck, Send, Globe,
+  TrendingUp, Flame, Share2, MoreHorizontal, Trash2
 } from "lucide-react";
 import { useState } from "react";
+import { UserAvatar, UserName } from "@/components/UserLink";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 export default function FeedPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"latest" | "trending">("latest");
 
-  // Public projects feed
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["feed-projects"],
     queryFn: async () => {
@@ -32,14 +35,13 @@ export default function FeedPage() {
     enabled: !!user,
   });
 
-  // Get creators
   const { data: creators = {} } = useQuery({
     queryKey: ["feed-creators", projects.map(p => p.user_id)],
     queryFn: async () => {
       const userIds = [...new Set(projects.map(p => p.user_id))];
       const result: Record<string, any> = {};
       for (const uid of userIds) {
-        const { data } = await supabase.from("profiles").select("display_name, avatar_url, username").eq("user_id", uid).single();
+        const { data } = await supabase.from("profiles").select("display_name, avatar_url, username, user_id").eq("user_id", uid).single();
         result[uid] = data;
       }
       return result;
@@ -91,7 +93,6 @@ export default function FeedPage() {
     enabled: projects.length > 0,
   });
 
-  // Fetch comments for expanded project
   const [expandedComments, setExpandedComments] = useState<string | null>(null);
   const { data: commentsData = [] } = useQuery({
     queryKey: ["comments-for", expandedComments],
@@ -102,12 +103,11 @@ export default function FeedPage() {
         .eq("project_id", expandedComments!)
         .order("created_at", { ascending: true })
         .limit(20);
-      // Fetch comment author profiles
       const comments = data ?? [];
       const authorIds = [...new Set(comments.map(c => c.user_id))];
       const profiles: Record<string, any> = {};
       for (const uid of authorIds) {
-        const { data: prof } = await supabase.from("profiles").select("display_name, avatar_url").eq("user_id", uid).single();
+        const { data: prof } = await supabase.from("profiles").select("display_name, avatar_url, user_id").eq("user_id", uid).single();
         profiles[uid] = prof;
       }
       return comments.map(c => ({ ...c, profile: profiles[c.user_id] }));
@@ -161,12 +161,24 @@ export default function FeedPage() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const deleteCommentMutation = useMutation({
+    mutationFn: async ({ commentId, projectId }: { commentId: string; projectId: string }) => {
+      const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("user_id", user!.id);
+      if (error) throw error;
+      return projectId;
+    },
+    onSuccess: (projectId) => {
+      queryClient.invalidateQueries({ queryKey: ["comments-for", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["feed-comment-counts"] });
+      toast.success("Comment deleted");
+    },
+  });
+
   const handleShare = (project: any) => {
     navigator.clipboard.writeText(`${window.location.origin}/feed#${project.id}`);
     toast.success("Link copied!");
   };
 
-  // Sort by engagement for trending
   const trendingProjects = [...projects].sort((a, b) => {
     const aScore = (likeCounts[a.id] ?? 0) + (commentCounts[a.id] ?? 0) * 2;
     const bScore = (likeCounts[b.id] ?? 0) + (commentCounts[b.id] ?? 0) * 2;
@@ -186,15 +198,15 @@ export default function FeedPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-2xl mx-auto">
-      <div className="mb-6">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground">
           Feed<span className="text-primary">.</span>
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">Latest from the creative community.</p>
-      </div>
+      </motion.div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 p-1 bg-secondary/50 rounded-lg w-fit">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex gap-1 mb-6 p-1 bg-secondary/50 rounded-lg w-fit">
         <button
           className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === "latest" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           onClick={() => setActiveTab("latest")}
@@ -207,7 +219,7 @@ export default function FeedPage() {
         >
           <Flame size={14} className="inline mr-1.5" /> Trending
         </button>
-      </div>
+      </motion.div>
 
       {isLoading ? (
         <div className="space-y-4">
@@ -245,15 +257,11 @@ export default function FeedPage() {
                     <CardContent className="p-0">
                       {/* Author Header */}
                       <div className="flex items-center gap-3 p-4 pb-3">
-                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden ring-2 ring-border">
-                          {creator?.avatar_url ? (
-                            <img src={creator.avatar_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <User size={16} className="text-muted-foreground" />
-                          )}
-                        </div>
+                        <UserAvatar userId={project.user_id} avatarUrl={creator?.avatar_url} size={10} className="ring-2 ring-border" />
                         <div className="flex-1">
-                          <p className="text-sm font-semibold">{creator?.display_name || "Artist"}</p>
+                          <p className="text-sm font-semibold">
+                            <UserName userId={project.user_id} name={creator?.display_name} />
+                          </p>
                           <p className="text-[11px] text-muted-foreground">
                             {creator?.username ? `@${creator.username} · ` : ""}{timeAgo(project.created_at)}
                           </p>
@@ -342,16 +350,22 @@ export default function FeedPage() {
                               {commentsData.length > 0 && (
                                 <div className="space-y-2 max-h-48 overflow-y-auto">
                                   {commentsData.map(comment => (
-                                    <div key={comment.id} className="flex gap-2">
-                                      <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center overflow-hidden shrink-0 mt-0.5">
-                                        {comment.profile?.avatar_url ? (
-                                          <img src={comment.profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                          <User size={10} className="text-muted-foreground" />
-                                        )}
-                                      </div>
+                                    <div key={comment.id} className="flex gap-2 group/comment">
+                                      <UserAvatar userId={comment.user_id} avatarUrl={comment.profile?.avatar_url} size={7} />
                                       <div className="flex-1 bg-secondary/50 rounded-xl px-3 py-2">
-                                        <p className="text-xs font-medium">{comment.profile?.display_name || "Artist"}</p>
+                                        <div className="flex items-center justify-between">
+                                          <p className="text-xs font-medium">
+                                            <UserName userId={comment.user_id} name={comment.profile?.display_name} />
+                                          </p>
+                                          {comment.user_id === user!.id && (
+                                            <button
+                                              className="opacity-0 group-hover/comment:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+                                              onClick={() => deleteCommentMutation.mutate({ commentId: comment.id, projectId: project.id })}
+                                            >
+                                              <Trash2 size={12} />
+                                            </button>
+                                          )}
+                                        </div>
                                         <p className="text-xs text-muted-foreground">{comment.content}</p>
                                       </div>
                                     </div>
@@ -390,15 +404,17 @@ export default function FeedPage() {
           </AnimatePresence>
         </div>
       ) : (
-        <Card className="border-border/50 border-dashed">
-          <CardContent className="py-16 flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-              <Globe size={28} className="text-primary" />
-            </div>
-            <h3 className="font-display font-bold text-lg text-foreground mb-1">No posts yet</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">Create a public project and it will appear in the feed.</p>
-          </CardContent>
-        </Card>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Card className="border-border/50 border-dashed">
+            <CardContent className="py-16 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <Globe size={28} className="text-primary" />
+              </div>
+              <h3 className="font-display font-bold text-lg text-foreground mb-1">No posts yet</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">Create a public project and it will appear in the feed.</p>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
     </div>
   );

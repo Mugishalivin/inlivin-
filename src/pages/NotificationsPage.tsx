@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Check, Heart, MessageCircle, UserPlus, Calendar, Trash2 } from "lucide-react";
+import { Bell, Check, Heart, MessageCircle, UserPlus, Calendar, FolderOpen, Users } from "lucide-react";
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const typeIcons: Record<string, any> = {
   follow: UserPlus,
@@ -12,12 +14,23 @@ const typeIcons: Record<string, any> = {
   comment: MessageCircle,
   message: MessageCircle,
   event: Calendar,
+  collaboration: Users,
   default: Bell,
+};
+
+const typeRoutes: Record<string, (refType?: string | null, refId?: string | null) => string> = {
+  follow: (_rt, refId) => `/profile/${refId}`,
+  like: (_rt, refId) => `/projects`,
+  comment: (_rt, refId) => `/feed`,
+  message: () => `/messages`,
+  event: (_rt, refId) => `/events`,
+  collaboration: (_rt, refId) => `/projects`,
 };
 
 export default function NotificationsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ["notifications"],
@@ -33,7 +46,6 @@ export default function NotificationsPage() {
     enabled: !!user,
   });
 
-  // Realtime
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -59,6 +71,14 @@ export default function NotificationsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
+  const handleNotificationClick = (notif: any) => {
+    if (!notif.is_read) markRead.mutate(notif.id);
+    const routeFn = typeRoutes[notif.type];
+    if (routeFn) {
+      navigate(routeFn(notif.reference_type, notif.reference_id));
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const formatTime = (date: string) => {
@@ -73,7 +93,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-3xl">
-      <div className="flex items-center justify-between mb-8">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground">
             Notifications<span className="text-primary">.</span>
@@ -87,7 +107,7 @@ export default function NotificationsPage() {
             <Check size={14} /> Mark all read
           </Button>
         )}
-      </div>
+      </motion.div>
 
       {isLoading ? (
         <div className="space-y-2">
@@ -103,15 +123,18 @@ export default function NotificationsPage() {
         </div>
       ) : notifications.length > 0 ? (
         <div className="space-y-1">
-          {notifications.map(notif => {
+          {notifications.map((notif, idx) => {
             const Icon = typeIcons[notif.type] || typeIcons.default;
             return (
-              <div
+              <motion.div
                 key={notif.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.03 }}
                 className={`flex items-start gap-3 p-3 rounded-lg transition-colors cursor-pointer ${
                   notif.is_read ? "hover:bg-secondary/30" : "bg-primary/5 hover:bg-primary/10"
                 }`}
-                onClick={() => !notif.is_read && markRead.mutate(notif.id)}
+                onClick={() => handleNotificationClick(notif)}
               >
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                   notif.is_read ? "bg-secondary" : "bg-primary/10"
@@ -130,22 +153,24 @@ export default function NotificationsPage() {
                 {!notif.is_read && (
                   <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
                 )}
-              </div>
+              </motion.div>
             );
           })}
         </div>
       ) : (
-        <Card className="border-border/50 border-dashed">
-          <CardContent className="py-16 flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-              <Bell size={28} className="text-primary" />
-            </div>
-            <h3 className="font-display font-bold text-lg text-foreground mb-1">No notifications</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              When someone follows you, likes your work, or sends a message, you'll see it here.
-            </p>
-          </CardContent>
-        </Card>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Card className="border-border/50 border-dashed">
+            <CardContent className="py-16 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <Bell size={28} className="text-primary" />
+              </div>
+              <h3 className="font-display font-bold text-lg text-foreground mb-1">No notifications</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                When someone follows you, likes your work, or sends a message, you'll see it here.
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
     </div>
   );
