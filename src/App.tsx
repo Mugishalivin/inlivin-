@@ -21,6 +21,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import BookmarksPage from "./pages/BookmarksPage";
 import SettingsPage from "./pages/SettingsPage";
+import UserProfilePage from "./pages/UserProfilePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/bookmarks" element={<BookmarksPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/profile/:userId" element={<UserProfilePage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
