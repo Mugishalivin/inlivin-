@@ -308,7 +308,6 @@ export default function MessagesPage() {
             {otherUser?.profile?.username && (
               <p className="text-[11px] text-muted-foreground">@{otherUser.profile.username}</p>
             )}
-            )}
           </div>
           <div className="flex gap-1">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toast.info("Voice call coming soon!")}>
