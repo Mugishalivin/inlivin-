@@ -273,7 +273,7 @@ export default function EventsPage() {
                   const isMine = event.user_id === user!.id;
                   return (
                     <motion.div key={event.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
-                      <Card className="border-border/50 hover:border-primary/20 transition-all overflow-hidden">
+                      <Card className="border-border/50 hover:border-primary/20 transition-all overflow-hidden cursor-pointer" onClick={() => navigate(`/events/${event.id}`)}>
                         {event.cover_url && (
                           <div className="h-40 bg-secondary">
                             <img src={event.cover_url} alt="" className="w-full h-full object-cover" />
