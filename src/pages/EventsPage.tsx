@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function EventsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
