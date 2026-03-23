@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { LoadingCardGrid } from "@/components/LoadingSkeletons";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
 } from "@/components/ui/dialog";
@@ -430,13 +431,7 @@ export default function ProjectsPage() {
       </Dialog>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => (
-            <Card key={i} className="border-border/50 animate-pulse">
-              <CardContent className="p-0"><div className="h-36 bg-muted rounded-t-lg" /><div className="p-4 space-y-2"><div className="h-4 bg-muted rounded w-2/3" /><div className="h-3 bg-muted rounded w-1/2" /></div></CardContent>
-            </Card>
-          ))}
-        </div>
+        <LoadingCardGrid count={6} />
       ) : (
         <div className="space-y-8">
           {/* My Projects */}

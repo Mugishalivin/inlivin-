@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingStatGrid, LoadingCard, LoadingProfile } from "@/components/LoadingSkeletons";
 import {
   User, FolderOpen, MessageCircle, Users, Compass, Zap,
   TrendingUp, Sparkles, ArrowRight, Heart, Calendar, Bell,
@@ -14,7 +15,7 @@ export default function DashboardPage() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const { count: followers } = await supabase
@@ -39,7 +40,7 @@ export default function DashboardPage() {
   });
 
   // Recent activity from notifications
-  const { data: recentActivity = [] } = useQuery({
+  const { data: recentActivity = [], isLoading: activityLoading } = useQuery({
     queryKey: ["dashboard-activity"],
     queryFn: async () => {
       const { data } = await supabase
@@ -54,7 +55,7 @@ export default function DashboardPage() {
   });
 
   // Upcoming events
-  const { data: upcomingEvents = [] } = useQuery({
+  const { data: upcomingEvents = [], isLoading: eventsLoading } = useQuery({
     queryKey: ["dashboard-events"],
     queryFn: async () => {
       const { data: rsvps } = await supabase
@@ -81,8 +82,6 @@ export default function DashboardPage() {
     follow: Users, like: Heart, comment: MessageCircle, message: MessageCircle, event: Calendar, default: Sparkles,
   };
 
-  const activityItems = recentActivity;
-
   return (
     <div className="p-6 md:p-8 max-w-5xl">
       {/* Welcome */}
@@ -95,57 +94,105 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: "Followers", value: stats?.followers ?? 0, icon: Users, color: "text-primary" },
-          { label: "Projects", value: stats?.projects ?? 0, icon: FolderOpen, color: "text-accent" },
-          { label: "Conversations", value: stats?.conversations ?? 0, icon: MessageCircle, color: "text-primary" },
-          { label: "Notifications", value: stats?.notifications ?? 0, icon: Bell, color: "text-accent" },
-        ].map((stat) => (
-          <Card key={stat.label} className="border-border/50 bg-card hover:border-primary/20 transition-colors">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <stat.icon size={18} className={stat.color} />
-                <TrendingUp size={12} className="text-muted-foreground" />
-              </div>
-              <div className="font-display text-2xl font-bold text-foreground">{stat.value}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{stat.label}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {statsLoading ? (
+        <LoadingStatGrid count={4} />
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {[
+            { label: "Followers", value: stats?.followers ?? 0, icon: Users, color: "text-primary" },
+            { label: "Projects", value: stats?.projects ?? 0, icon: FolderOpen, color: "text-accent" },
+            { label: "Conversations", value: stats?.conversations ?? 0, icon: MessageCircle, color: "text-primary" },
+            { label: "Notifications", value: stats?.notifications ?? 0, icon: Bell, color: "text-accent" },
+          ].map((stat) => (
+            <Card key={stat.label} className="border-border/50 bg-card hover:border-primary/20 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <stat.icon size={18} className={stat.color} />
+                  <TrendingUp size={12} className="text-muted-foreground" />
+                </div>
+                <div className="font-display text-2xl font-bold text-foreground">{stat.value}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{stat.label}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="grid md:grid-cols-3 gap-6">
         {/* Activity Feed + Quick Actions */}
         <div className="md:col-span-2 space-y-6">
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="font-display text-lg flex items-center gap-2">
-                <Zap size={18} className="text-primary" /> Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {activityItems.map((item: any) => {
-                const Icon = activityIcons[item.type] || activityIcons.default;
-                return (
-                  <div key={item.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon size={14} className="text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground">{item.title}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </p>
+          {activityLoading ? (
+            <Card className="border-border/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <Zap size={18} className="text-primary" /> Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg animate-pulse">
+                    <div className="w-8 h-8 rounded-full bg-primary/10" />
+                    <div className="flex-1 space-y-1">
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3" />
+                      <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
                     </div>
                   </div>
-                );
-              })}
-            </CardContent>
-          </Card>
+                ))}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <Zap size={18} className="text-primary" /> Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {recentActivity.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">No recent activity</p>
+                ) : (
+                  recentActivity.map((item: any) => {
+                    const Icon = activityIcons[item.type] || activityIcons.default;
+                    return (
+                      <div key={item.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                          <Icon size={14} className="text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground">{item.title}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {new Date(item.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Upcoming events */}
-          {upcomingEvents.length > 0 && (
+          {eventsLoading ? (
+            <Card className="border-border/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="font-display text-base flex items-center gap-2">
+                  <Calendar size={16} className="text-accent" /> Upcoming Events
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 p-2 rounded-lg animate-pulse">
+                    <div className="w-10 h-10 rounded-lg bg-accent/10" />
+                    <div className="flex-1 space-y-1">
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3" />
+                      <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : upcomingEvents.length > 0 && (
             <Card className="border-border/50">
               <CardHeader className="pb-3">
                 <CardTitle className="font-display text-base flex items-center gap-2">

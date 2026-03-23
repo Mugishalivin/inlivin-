@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { LoadingList, LoadingChat } from "@/components/LoadingSkeletons";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageCircle, Search, Send, User, ArrowLeft, Plus, Phone, Video,
@@ -87,7 +87,7 @@ export default function MessagesPage() {
   });
 
   // Fetch messages for active conversation
-  const { data: messages = [] } = useQuery({
+  const { data: messages = [], isLoading: messagesLoading } = useQuery({
     queryKey: ["messages", activeConvo],
     queryFn: async () => {
       const { data } = await supabase
@@ -225,10 +225,16 @@ export default function MessagesPage() {
         .single();
       if (convoErr) throw convoErr;
 
-      await supabase.from("conversation_participants").insert([
-        { conversation_id: convo.id, user_id: user!.id },
-        { conversation_id: convo.id, user_id: otherUserId },
-      ]);
+      // Insert participants one at a time to avoid RLS issues
+      const { error: selfErr } = await supabase
+        .from("conversation_participants")
+        .insert({ conversation_id: convo.id, user_id: user!.id });
+      if (selfErr) throw selfErr;
+
+      const { error: otherErr } = await supabase
+        .from("conversation_participants")
+        .insert({ conversation_id: convo.id, user_id: otherUserId });
+      if (otherErr) throw otherErr;
 
       return convo.id;
     },
@@ -333,7 +339,11 @@ export default function MessagesPage() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
-          {Object.entries(groupedMessages).map(([date, msgs]) => (
+          {messagesLoading ? (
+            <LoadingChat count={4} />
+          ) : (
+            <>
+              {Object.entries(groupedMessages).map(([date, msgs]) => (
             <div key={date}>
               <div className="flex justify-center my-4">
                 <span className="text-[10px] px-3 py-1 rounded-full bg-secondary text-muted-foreground">{date}</span>
@@ -378,6 +388,8 @@ export default function MessagesPage() {
               </AnimatePresence>
             </div>
           ))}
+            </>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -496,17 +508,7 @@ export default function MessagesPage() {
       )}
 
       {convoLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="flex items-center gap-3 p-3 animate-pulse">
-              <div className="w-11 h-11 rounded-full bg-muted" />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-muted rounded w-1/3" />
-                <div className="h-3 bg-muted rounded w-2/3" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <LoadingList count={5} />
       ) : filteredConversations.length > 0 ? (
         <div className="space-y-1">
           {filteredConversations.map((convo, idx) => {

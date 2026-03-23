@@ -19,6 +19,7 @@ import ExplorePage from "./pages/ExplorePage";
 import FeedPage from "./pages/FeedPage";
 import EventsPage from "./pages/EventsPage";
 import EventDetailPage from "./pages/EventDetailPage";
+import CreateEventPage from "./pages/CreateEventPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import BookmarksPage from "./pages/BookmarksPage";
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/explore" element={<ExplorePage />} />
               <Route path="/events" element={<EventsPage />} />
+              <Route path="/create-event" element={<CreateEventPage />} />
               <Route path="/events/:eventId" element={<EventDetailPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />

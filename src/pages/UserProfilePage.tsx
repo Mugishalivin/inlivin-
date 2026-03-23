@@ -95,10 +95,14 @@ export default function UserProfilePage() {
       }
       const { data: convo, error } = await supabase.from("conversations").insert({}).select().single();
       if (error) throw error;
-      await supabase.from("conversation_participants").insert([
-        { conversation_id: convo.id, user_id: user!.id },
-        { conversation_id: convo.id, user_id: userId! },
-      ]);
+      
+      // Insert participants one at a time to avoid RLS issues
+      const { error: selfErr } = await supabase.from("conversation_participants").insert({ conversation_id: convo.id, user_id: user!.id });
+      if (selfErr) throw selfErr;
+      
+      const { error: otherErr } = await supabase.from("conversation_participants").insert({ conversation_id: convo.id, user_id: userId! });
+      if (otherErr) throw otherErr;
+      
       return convo.id;
     },
     onSuccess: () => navigate("/messages"),

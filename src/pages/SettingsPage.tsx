@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingSpinner } from "@/components/LoadingSkeletons";
 import { toast } from "sonner";
 import { Save, User, Upload } from "lucide-react";
 
@@ -106,7 +107,8 @@ export default function SettingsPage() {
               <label className="cursor-pointer">
                 <Button variant="hero-outline" size="sm" asChild disabled={avatarUploading}>
                   <span>
-                    <Upload size={14} /> {avatarUploading ? "Uploading..." : "Upload Photo"}
+                    {avatarUploading ? <LoadingSpinner size="sm" /> : <Upload size={14} />}
+                    {avatarUploading ? "Uploading..." : "Upload Photo"}
                   </span>
                 </Button>
                 <input
@@ -168,7 +170,8 @@ export default function SettingsPage() {
 
             <div className="flex items-center gap-3 pt-2">
               <Button variant="hero" type="submit" disabled={loading}>
-                <Save size={14} /> {loading ? "Saving..." : "Save Changes"}
+                {loading ? <LoadingSpinner size="sm" /> : <Save size={14} />}
+                {loading ? "Saving..." : "Save Changes"}
               </Button>
               <p className="text-[11px] text-muted-foreground">{user?.email}</p>
             </div>
