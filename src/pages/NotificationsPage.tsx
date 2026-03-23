@@ -1,12 +1,12 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Check, Heart, MessageCircle, UserPlus, Calendar, FolderOpen, Users } from "lucide-react";
+import { Bell, Check, Heart, MessageCircle, UserPlus, Calendar, Users, Sparkles } from "lucide-react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { UserAvatar } from "@/components/UserLink";
 
 const typeIcons: Record<string, any> = {
   follow: UserPlus,
@@ -15,6 +15,7 @@ const typeIcons: Record<string, any> = {
   message: MessageCircle,
   event: Calendar,
   collaboration: Users,
+  tip: Sparkles,
   default: Bell,
 };
 
@@ -23,8 +24,8 @@ const typeRoutes: Record<string, (refType?: string | null, refId?: string | null
   like: (_rt, refId) => `/projects`,
   comment: (_rt, refId) => `/feed`,
   message: () => `/messages`,
-  event: (_rt, refId) => `/events`,
-  collaboration: (_rt, refId) => `/projects`,
+  event: (_rt, refId) => refId ? `/events/${refId}` : `/events`,
+  collaboration: (_rt, refId) => refId ? `/projects/${refId}` : `/projects`,
 };
 
 export default function NotificationsPage() {
@@ -46,6 +47,21 @@ export default function NotificationsPage() {
     enabled: !!user,
   });
 
+  // Fetch profiles for notification actors
+  const actorIds = [...new Set(notifications.filter(n => n.reference_type === "user" && n.reference_id).map(n => n.reference_id!))];
+  const { data: actorProfiles = {} } = useQuery({
+    queryKey: ["notif-actors", actorIds],
+    queryFn: async () => {
+      const result: Record<string, any> = {};
+      for (const uid of actorIds) {
+        const { data } = await supabase.from("profiles").select("display_name, avatar_url, user_id").eq("user_id", uid).single();
+        if (data) result[uid] = data;
+      }
+      return result;
+    },
+    enabled: actorIds.length > 0,
+  });
+
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -61,14 +77,20 @@ export default function NotificationsPage() {
     mutationFn: async (id: string) => {
       await supabase.from("notifications").update({ is_read: true }).eq("id", id);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["unread-notif-count"] });
+    },
   });
 
   const markAllRead = useMutation({
     mutationFn: async () => {
       await supabase.from("notifications").update({ is_read: true }).eq("user_id", user!.id).eq("is_read", false);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["unread-notif-count"] });
+    },
   });
 
   const handleNotificationClick = (notif: any) => {
@@ -86,90 +108,121 @@ export default function NotificationsPage() {
     const now = new Date();
     const diff = now.getTime() - d.getTime();
     if (diff < 60000) return "now";
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d`;
     return d.toLocaleDateString();
   };
 
-  return (
-    <div className="p-6 md:p-8 max-w-3xl">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground">
-            Notifications<span className="text-primary">.</span>
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up!"}
-          </p>
+  // Group: Today, This Week, Earlier
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const weekStart = todayStart - 6 * 86400000;
+
+  const grouped = {
+    today: notifications.filter(n => new Date(n.created_at).getTime() >= todayStart),
+    thisWeek: notifications.filter(n => { const t = new Date(n.created_at).getTime(); return t >= weekStart && t < todayStart; }),
+    earlier: notifications.filter(n => new Date(n.created_at).getTime() < weekStart),
+  };
+
+  const renderGroup = (label: string, items: any[]) => {
+    if (items.length === 0) return null;
+    return (
+      <div className="mb-4">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">{label}</p>
+        <div className="space-y-0.5">
+          {items.map((notif, idx) => {
+            const Icon = typeIcons[notif.type] || typeIcons.default;
+            const actorProfile = notif.reference_type === "user" && notif.reference_id ? actorProfiles[notif.reference_id] : null;
+            return (
+              <motion.div
+                key={notif.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: idx * 0.02 }}
+                className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors cursor-pointer ${
+                  notif.is_read ? "hover:bg-secondary/40" : "bg-primary/[0.04] hover:bg-primary/[0.08]"
+                }`}
+                onClick={() => handleNotificationClick(notif)}
+              >
+                {/* Avatar or icon */}
+                {actorProfile ? (
+                  <div className="w-11 h-11 rounded-full bg-secondary flex items-center justify-center shrink-0 overflow-hidden">
+                    {actorProfile.avatar_url ? (
+                      <img src={actorProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Icon size={18} className={notif.is_read ? "text-muted-foreground" : "text-primary"} />
+                    )}
+                  </div>
+                ) : (
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
+                    notif.is_read ? "bg-secondary" : "bg-primary/10"
+                  }`}>
+                    <Icon size={18} className={notif.is_read ? "text-muted-foreground" : "text-primary"} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[13px] leading-tight ${notif.is_read ? "text-muted-foreground" : "text-foreground font-medium"}`}>
+                    {notif.title}
+                  </p>
+                  {notif.message && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{notif.message}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] text-muted-foreground">{formatTime(notif.created_at)}</span>
+                  {!notif.is_read && (
+                    <div className="w-2 h-2 rounded-full bg-primary" />
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-4 md:p-6 max-w-2xl mx-auto">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-6">
+        <h1 className="font-display text-xl md:text-2xl font-extrabold text-foreground">
+          Notifications
+        </h1>
         {unreadCount > 0 && (
-          <Button variant="outline" size="sm" onClick={() => markAllRead.mutate()}>
-            <Check size={14} /> Mark all read
+          <Button variant="ghost" size="sm" className="text-xs text-primary" onClick={() => markAllRead.mutate()}>
+            Mark all as read
           </Button>
         )}
       </motion.div>
 
       {isLoading ? (
         <div className="space-y-2">
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className="flex items-center gap-3 p-3 animate-pulse">
-              <div className="w-10 h-10 rounded-full bg-muted" />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-muted rounded w-2/3" />
-                <div className="h-3 bg-muted rounded w-1/3" />
+              <div className="w-11 h-11 rounded-full bg-muted" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 bg-muted rounded w-3/4" />
+                <div className="h-2.5 bg-muted rounded w-1/3" />
               </div>
             </div>
           ))}
         </div>
       ) : notifications.length > 0 ? (
-        <div className="space-y-1">
-          {notifications.map((notif, idx) => {
-            const Icon = typeIcons[notif.type] || typeIcons.default;
-            return (
-              <motion.div
-                key={notif.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.03 }}
-                className={`flex items-start gap-3 p-3 rounded-lg transition-colors cursor-pointer ${
-                  notif.is_read ? "hover:bg-secondary/30" : "bg-primary/5 hover:bg-primary/10"
-                }`}
-                onClick={() => handleNotificationClick(notif)}
-              >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                  notif.is_read ? "bg-secondary" : "bg-primary/10"
-                }`}>
-                  <Icon size={16} className={notif.is_read ? "text-muted-foreground" : "text-primary"} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm ${notif.is_read ? "text-muted-foreground" : "text-foreground font-medium"}`}>
-                    {notif.title}
-                  </p>
-                  {notif.message && (
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{notif.message}</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground mt-1">{formatTime(notif.created_at)}</p>
-                </div>
-                {!notif.is_read && (
-                  <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
+        <>
+          {renderGroup("Today", grouped.today)}
+          {renderGroup("This Week", grouped.thisWeek)}
+          {renderGroup("Earlier", grouped.earlier)}
+        </>
       ) : (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Card className="border-border/50 border-dashed">
-            <CardContent className="py-16 flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <Bell size={28} className="text-primary" />
-              </div>
-              <h3 className="font-display font-bold text-lg text-foreground mb-1">No notifications</h3>
-              <p className="text-sm text-muted-foreground max-w-sm">
-                When someone follows you, likes your work, or sends a message, you'll see it here.
-              </p>
-            </CardContent>
-          </Card>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center text-center py-20">
+          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
+            <Bell size={24} className="text-muted-foreground/40" />
+          </div>
+          <h3 className="font-display font-bold text-base text-foreground mb-1">No notifications yet</h3>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            When someone follows you, likes your work, or invites you to collaborate, it'll show up here.
+          </p>
         </motion.div>
       )}
     </div>

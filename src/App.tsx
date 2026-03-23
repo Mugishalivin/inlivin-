@@ -13,10 +13,12 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProjectsPage from "./pages/ProjectsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
 import MessagesPage from "./pages/MessagesPage";
 import ExplorePage from "./pages/ExplorePage";
 import FeedPage from "./pages/FeedPage";
 import EventsPage from "./pages/EventsPage";
+import EventDetailPage from "./pages/EventDetailPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import BookmarksPage from "./pages/BookmarksPage";
@@ -49,9 +51,11 @@ const App = () => (
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/feed" element={<FeedPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/explore" element={<ExplorePage />} />
               <Route path="/events" element={<EventsPage />} />
+              <Route path="/events/:eventId" element={<EventDetailPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/bookmarks" element={<BookmarksPage />} />

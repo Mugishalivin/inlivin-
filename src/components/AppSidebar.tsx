@@ -3,7 +3,7 @@ import {
   Bell, Globe, Calendar, BarChart3, Bookmark
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -140,32 +140,51 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-3">
+      <SidebarFooter className="border-t border-sidebar-border p-0">
         {!collapsed ? (
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0 overflow-hidden">
+          <Link
+            to={user ? `/profile/${user.id}` : "/settings"}
+            className="flex items-center gap-3 p-4 hover:bg-sidebar-accent/50 transition-colors cursor-pointer group"
+          >
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-border group-hover:ring-primary/30 transition-all">
               {profile?.avatar_url ? (
                 <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
               ) : (
-                <User size={16} className="text-muted-foreground" />
+                <User size={18} className="text-muted-foreground" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">
                 {profile?.display_name || "Artist"}
               </p>
               <p className="text-[11px] text-muted-foreground truncate">
-                {profile?.username ? `@${profile.username}` : "Set username"}
+                {profile?.username ? `@${profile.username}` : user?.email?.split("@")[0]}
               </p>
             </div>
-            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleSignOut}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleSignOut(); }}
+            >
+              <LogOut size={14} />
+            </Button>
+          </Link>
+        ) : (
+          <div className="p-3 flex flex-col items-center gap-2">
+            <Link to={user ? `/profile/${user.id}` : "/settings"}>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center overflow-hidden ring-2 ring-border hover:ring-primary/30 transition-all">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <User size={14} className="text-muted-foreground" />
+                )}
+              </div>
+            </Link>
+            <Button variant="ghost" size="icon" className="w-8 h-8" onClick={handleSignOut}>
               <LogOut size={14} />
             </Button>
           </div>
-        ) : (
-          <Button variant="ghost" size="icon" className="w-full" onClick={handleSignOut}>
-            <LogOut size={16} />
-          </Button>
         )}
       </SidebarFooter>
     </Sidebar>
