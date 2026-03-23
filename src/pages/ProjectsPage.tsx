@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +40,7 @@ const collabRoles = [
 
 export default function ProjectsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [collabOpen, setCollabOpen] = useState<string | null>(null);
@@ -253,7 +255,7 @@ export default function ProjectsPage() {
     const CatIcon = getCategoryIcon(project.category);
     return (
       <motion.div key={project.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className="border-border/50 hover:border-primary/20 transition-all overflow-hidden group">
+        <Card className="border-border/50 hover:border-primary/20 transition-all overflow-hidden group cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
           <CardContent className="p-0">
             <div className="h-36 bg-secondary relative overflow-hidden">
               {project.cover_url ? (

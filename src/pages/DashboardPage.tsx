@@ -81,13 +81,7 @@ export default function DashboardPage() {
     follow: Users, like: Heart, comment: MessageCircle, message: MessageCircle, event: Calendar, default: Sparkles,
   };
 
-  const defaultActivity = [
-    { id: "1", title: "Welcome to inlivin! Complete your profile to get discovered.", created_at: new Date().toISOString(), type: "default" },
-    { id: "2", title: "Explore trending artists in your genre.", created_at: new Date().toISOString(), type: "default" },
-    { id: "3", title: "Start your first project and share your vision.", created_at: new Date().toISOString(), type: "default" },
-  ];
-
-  const activityItems = recentActivity.length > 0 ? recentActivity : defaultActivity;
+  const activityItems = recentActivity;
 
   return (
     <div className="p-6 md:p-8 max-w-5xl">
