@@ -40,6 +40,7 @@ const collabRoles = [
 
 export default function ProjectsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [collabOpen, setCollabOpen] = useState<string | null>(null);
