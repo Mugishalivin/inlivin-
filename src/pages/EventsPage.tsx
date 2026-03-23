@@ -16,6 +16,7 @@ import {
   Calendar, Plus, MapPin, Users, Clock, Trash2, Edit, CheckCircle, XCircle, Upload, Image as ImageIcon
 } from "lucide-react";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 export default function EventsPage() {
   const { user } = useAuth();
