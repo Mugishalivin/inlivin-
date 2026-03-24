@@ -147,8 +147,16 @@ export default function MessagesPage() {
     queryKey: ["search-users-chat", searchUsers],
     queryFn: async () => {
       if (!searchUsers.trim()) return [];
-      const { data } = await supabase.from("profiles").select("*").neq("user_id", user!.id)
-        .or(`display_name.ilike.%${searchUsers}%,username.ilike.%${searchUsers}%`).limit(10);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .neq("user_id", user!.id)
+        .or(`display_name.ilike.%${searchUsers}%,username.ilike.%${searchUsers}%`)
+        .limit(10);
+      if (error) {
+        console.error("Search error:", error);
+        return [];
+      }
       return data ?? [];
     },
     enabled: !!user && searchUsers.length > 1,
@@ -272,8 +280,6 @@ export default function MessagesPage() {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       toast.success("Conversation removed");
     },
-  });
-
   const formatTime = (date: string) => {
     const d = new Date(date);
     const now = new Date();
@@ -770,9 +776,13 @@ export default function MessagesPage() {
         </div>
         <div className="space-y-1">
           {searchResults.map(profile => (
-            <motion.button key={profile.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-              className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors text-left"
+            <motion.button
+              key={profile.id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => startConversation.mutate(profile.user_id)}
+              disabled={startConversation.isPending}
             >
               <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
                 {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" /> : <User size={16} className="text-muted-foreground" />}
@@ -781,7 +791,11 @@ export default function MessagesPage() {
                 <p className="text-sm font-medium">{profile.display_name || "Artist"}</p>
                 {profile.username && <p className="text-[11px] text-muted-foreground">@{profile.username}</p>}
               </div>
-              <MessageCircle size={16} className="text-muted-foreground" />
+              {startConversation.isPending ? (
+                <div className="h-4 w-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+              ) : (
+                <MessageCircle size={16} className="text-muted-foreground" />
+              )}
             </motion.button>
           ))}
           {searchUsers.length > 1 && searchResults.length === 0 && (

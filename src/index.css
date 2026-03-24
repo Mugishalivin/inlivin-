@@ -149,4 +149,27 @@
     height: 1px;
     background: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
   }
+
+  @keyframes feed-marquee-scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  .feed-marquee-track {
+    animation: feed-marquee-scroll 28s linear infinite;
+  }
+
+  .feed-marquee:hover .feed-marquee-track {
+    animation-play-state: paused;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .feed-marquee-track {
+      animation: none;
+    }
+  }
 }

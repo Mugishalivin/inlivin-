@@ -25,6 +25,9 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import BookmarksPage from "./pages/BookmarksPage";
 import SettingsPage from "./pages/SettingsPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import AdminPage from "./pages/AdminPage";
+import ContentPipelinePage from "./pages/ContentPipelinePage";
+import ContentDetailPage from "./pages/ContentDetailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +66,9 @@ const App = () => (
               <Route path="/bookmarks" element={<BookmarksPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/profile/:userId" element={<UserProfilePage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/content-pipeline" element={<ContentPipelinePage />} />
+              <Route path="/content/:contentType/:contentId" element={<ContentDetailPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

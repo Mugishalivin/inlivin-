@@ -1,6 +1,6 @@
 import {
   Home, FolderOpen, MessageCircle, Compass, Settings, LogOut, User,
-  Bell, Globe, Calendar, BarChart3, Bookmark
+  Bell, Globe, Calendar, BarChart3, Bookmark, Megaphone
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate, Link } from "react-router-dom";
@@ -32,10 +32,19 @@ const mainNav = [
 
 const secondaryNav = [
   { title: "Events", url: "/events", icon: Calendar },
+  { title: "Content Pipeline", url: "/content-pipeline", icon: Megaphone },
   { title: "Notifications", url: "/notifications", icon: Bell },
   { title: "Bookmarks", url: "/bookmarks", icon: Bookmark },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
 ];
+
+const getSecondaryNav = (role: string | null) => {
+  const nav = [...secondaryNav];
+  if (role === 'admin') {
+    nav.push({ title: "Admin", url: "/admin", icon: Users });
+  }
+  return nav;
+};
 
 const bottomNav = [
   { title: "Settings", url: "/settings", icon: Settings },
@@ -46,7 +55,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, role, signOut } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -129,7 +138,7 @@ export function AppSidebar() {
             {!collapsed && "More"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>{renderNavItems(secondaryNav)}</SidebarMenu>
+            <SidebarMenu>{renderNavItems(getSecondaryNav(role))}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 

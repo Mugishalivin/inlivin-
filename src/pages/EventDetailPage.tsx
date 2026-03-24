@@ -8,16 +8,34 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Calendar, Clock, MapPin, Users, CheckCircle, XCircle,
-  Share2, Edit, Trash2, User, Globe, ExternalLink
+  Share2, Edit, Trash2, User, Globe, ExternalLink, Heart, Bookmark, MessageCircle, Mail, Copy, Flag
 } from "lucide-react";
 import { format } from "date-fns";
 import { UserAvatar, UserName } from "@/components/UserLink";
+import { useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function EventDetailPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [shareMessage, setShareMessage] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event-detail", eventId],
@@ -52,6 +70,14 @@ export default function EventDetailPage() {
     enabled: !!eventId,
   });
 
+  useEffect(() => {
+    if (event) {
+      setEditTitle(event.title || "");
+      setEditDescription(event.description || "");
+      setShareMessage(`Check out: ${event.title}`);
+    }
+  }, [event]);
+
   const isRsvpd = attendees.some(a => a.user_id === user?.id);
   const isMine = event?.user_id === user?.id;
   const isPast = event ? new Date(event.event_date) < new Date() : false;
@@ -81,9 +107,35 @@ export default function EventDetailPage() {
     },
   });
 
+  const updateEvent = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("events").update({
+        title: editTitle || event?.title,
+        description: editDescription || event?.description,
+      }).eq("id", eventId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
+      toast.success("Event updated!");
+      setShowEditModal(false);
+    },
+  });
+
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success("Link copied!");
+  };
+
+  const handleEmailShare = () => {
+    const subject = `Check out: ${event?.title}`;
+    const body = `${shareMessage || "Check out this event:"}\n\n${window.location.href}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const handleTwitterShare = () => {
+    const text = encodeURIComponent((shareMessage || `Check out: ${event?.title}`) + "\n\n");
+    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(window.location.href)}`, "_blank");
   };
 
   if (isLoading) {
@@ -121,17 +173,43 @@ export default function EventDetailPage() {
               <span>Hosted by {creator?.display_name || "Artist"}</span>
             </Link>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex flex-wrap gap-2 shrink-0">
             {!isPast && (
               <Button variant={isRsvpd ? "outline" : "hero"} size="sm" onClick={() => rsvpMutation.mutate()}>
                 {isRsvpd ? <><XCircle size={14} /> Cancel RSVP</> : <><CheckCircle size={14} /> RSVP</>}
               </Button>
             )}
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleShare}><Share2 size={14} /></Button>
+            <Button variant={liked ? "default" : "outline"} size="icon" className="h-8 w-8" onClick={() => setLiked(!liked)} title="Like">
+              <Heart size={14} fill={liked ? "currentColor" : "none"} />
+            </Button>
+            <Button variant={saved ? "default" : "outline"} size="icon" className="h-8 w-8" onClick={() => setSaved(!saved)} title="Save">
+              <Bookmark size={14} fill={saved ? "currentColor" : "none"} />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-8 w-8" title="Share">
+                  <Share2 size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleShare}><Copy size={14} className="mr-2" /> Copy Link</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleEmailShare}><Mail size={14} className="mr-2" /> Email</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleTwitterShare}><MessageCircle size={14} className="mr-2" /> Twitter/X</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowShareModal(true)}><Share2 size={14} className="mr-2" /> More</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {isMine && (
-              <Button variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteEvent.mutate()}>
-                <Trash2 size={14} />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8">
+                    <Edit size={14} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowEditModal(true)}><Edit size={14} className="mr-2" /> Edit</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => deleteEvent.mutate()} className="text-destructive"><Trash2 size={14} className="mr-2" /> Delete</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
@@ -206,6 +284,57 @@ export default function EventDetailPage() {
             </Card>
           </div>
         </div>
+
+        {/* Share Modal */}
+        <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Share Event</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs font-semibold block mb-2">Event Link</Label>
+                <div className="flex gap-2">
+                  <Input value={window.location.href} readOnly className="text-xs bg-secondary/50" />
+                  <Button onClick={handleShare} variant="outline" size="icon" className="shrink-0"><Copy size={16} /></Button>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold block mb-2">Message</Label>
+                <Textarea value={shareMessage} onChange={(e) => setShareMessage(e.target.value)} className="text-xs h-16 resize-none" placeholder="Add a message..." />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button onClick={handleEmailShare} variant="outline" className="flex-1 text-xs"><Mail size={14} className="mr-1" /> Email</Button>
+                <Button onClick={handleTwitterShare} variant="outline" className="flex-1 text-xs"><MessageCircle size={14} className="mr-1" /> Twitter</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Event Modal */}
+        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Edit Event</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs font-semibold block mb-2">Title</Label>
+                <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="text-sm" />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold block mb-2">Description</Label>
+                <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="text-xs h-20 resize-none" />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="outline" onClick={() => setShowEditModal(false)} className="text-xs">Cancel</Button>
+                <Button onClick={() => updateEvent.mutate()} disabled={updateEvent.isPending} className="text-xs">
+                  {updateEvent.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </motion.div>
     </div>
   );

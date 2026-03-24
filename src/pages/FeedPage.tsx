@@ -5,34 +5,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Bookmark, BookmarkCheck, Send, Globe,
-  Flame, Share2, MoreHorizontal, Trash2, Sparkles, TrendingUp, Zap, Eye
+  TrendingUp, Flame, Share2, MoreHorizontal, Trash2
 } from "lucide-react";
-import { useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
 import { UserAvatar, UserName } from "@/components/UserLink";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 
-const MARQUEE_WORDS = [
-  "Create", "Collaborate", "Inspire", "Produce", "Mix", "Design", "Share", "Connect",
-  "Record", "Perform", "Compose", "Innovate", "Express", "Build"
-];
-
-const SUGGESTIONS = [
-  { icon: Sparkles, text: "Discover trending projects", color: "text-yellow-500" },
-  { icon: TrendingUp, text: "Follow top creators", color: "text-green-500" },
-  { icon: Zap, text: "Start a new collaboration", color: "text-primary" },
-];
-
 export default function FeedPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"latest" | "trending">("latest");
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["feed-projects"],
@@ -42,6 +29,177 @@ export default function FeedPage() {
     },
     enabled: !!user,
   });
+
+  const { data: allProjectMeta = [] } = useQuery({
+    queryKey: ["feed-project-meta"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("id, title, description, tags, cover_url, created_at")
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
+        .limit(120);
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
+  const popularTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    allProjectMeta.forEach((project: any) => {
+      (project.tags ?? []).forEach((tag: string) => {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      });
+    });
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tag]) => tag);
+  }, [allProjectMeta]);
+
+  const marqueeSuggestions = useMemo<SearchSuggestion[]>(() => {
+    const tagItems = popularTags.map((tag) => ({
+      type: "tag" as const,
+      value: tag,
+      label: `#${tag}`,
+      meta: "Popular tag",
+      icon: Hash,
+    }));
+
+    const searchItems = ["Digital Art", "UI Design", "Animation", "Photography", "Illustration"].map((term) => ({
+      type: "search" as const,
+      value: term,
+      label: term,
+      meta: "Hot search",
+      icon: Zap,
+    }));
+
+    return [...tagItems, ...searchItems];
+  }, [popularTags]);
+
+  const dynamicSuggestions = useMemo<SearchSuggestion[]>(() => {
+    const term = searchQuery.trim().toLowerCase();
+    if (!term) return marqueeSuggestions.slice(0, 8);
+
+    const titleMatches = allProjectMeta
+      .filter((project: any) => project.title?.toLowerCase().includes(term))
+      .slice(0, 5)
+      .map((project: any) => ({
+        type: "title" as const,
+        value: project.title as string,
+        label: project.title as string,
+        meta: "Project title match",
+        icon: Sparkles,
+      }));
+
+    const tagMatches = popularTags
+      .filter((tag) => tag.toLowerCase().includes(term))
+      .slice(0, 4)
+      .map((tag) => ({
+        type: "tag" as const,
+        value: tag,
+        label: `#${tag}`,
+        meta: "Tag match",
+        icon: Hash,
+      }));
+
+    const searchedText = searchQuery.trim();
+    const searchItem: SearchSuggestion[] = searchedText
+      ? [{
+          type: "search",
+          value: searchedText,
+          label: searchedText,
+          meta: "Search feed",
+          icon: Search,
+        }]
+      : [];
+
+    const combined = [...searchItem, ...titleMatches, ...tagMatches];
+    const seen = new Set<string>();
+    return combined.filter((item) => {
+      const key = `${item.type}:${item.value.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 8);
+  }, [allProjectMeta, marqueeSuggestions, popularTags, searchQuery]);
+
+  const applySuggestion = (suggestion: SearchSuggestion) => {
+    if (suggestion.type === "tag") {
+      setSelectedTagFilter(suggestion.value.replace(/^#/, ""));
+      setSearchQuery("");
+    } else {
+      setSearchQuery(suggestion.value);
+      setSelectedTagFilter(null);
+    }
+    setShowSuggestions(false);
+  };
+
+  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (!dynamicSuggestions.length) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setShowSuggestions(true);
+      setActiveSuggestionIndex((prev) => (prev + 1) % dynamicSuggestions.length);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setShowSuggestions(true);
+      setActiveSuggestionIndex((prev) => (prev - 1 + dynamicSuggestions.length) % dynamicSuggestions.length);
+      return;
+    }
+
+    if (event.key === "Enter" && showSuggestions) {
+      event.preventDefault();
+      const selected = dynamicSuggestions[activeSuggestionIndex];
+      if (selected) applySuggestion(selected);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  };
+
+  const highlightSuggestion = (text: string): ReactNode => {
+    const term = searchQuery.trim();
+    if (!term) return text;
+
+    const lowerText = text.toLowerCase();
+    const lowerTerm = term.toLowerCase();
+    const startIndex = lowerText.indexOf(lowerTerm);
+    if (startIndex === -1) return text;
+
+    const before = text.slice(0, startIndex);
+    const match = text.slice(startIndex, startIndex + term.length);
+    const after = text.slice(startIndex + term.length);
+
+    return (
+      <>
+        {before}
+        <span className="text-primary font-semibold">{match}</span>
+        {after}
+      </>
+    );
+  };
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    setActiveSuggestionIndex(0);
+  }, [searchQuery, dynamicSuggestions.length]);
 
   const { data: creators = {} } = useQuery({
     queryKey: ["feed-creators", projects.map(p => p.user_id)],
@@ -156,13 +314,42 @@ export default function FeedPage() {
     toast.success("Link copied!");
   };
 
-  const trendingProjects = [...projects].sort((a, b) => {
-    const aScore = (likeCounts[a.id] ?? 0) + (commentCounts[a.id] ?? 0) * 2;
-    const bScore = (likeCounts[b.id] ?? 0) + (commentCounts[b.id] ?? 0) * 2;
-    return bScore - aScore;
-  });
+  const engagementScore = (projectId: string) => {
+    return (likeCounts[projectId] ?? 0) + (commentCounts[projectId] ?? 0) * 2;
+  };
 
+  const trendingProjects = [...projects].sort((a, b) => engagementScore(b.id) - engagementScore(a.id));
   const displayProjects = activeTab === "trending" ? trendingProjects : projects;
+
+  const filteredProjects = useMemo(() => {
+    const text = searchQuery.trim().toLowerCase();
+    return displayProjects.filter((project: any) => {
+      const matchesText = !text
+        || project.title?.toLowerCase().includes(text)
+        || project.description?.toLowerCase().includes(text);
+
+      const matchesTag = !selectedTagFilter || (project.tags ?? []).includes(selectedTagFilter);
+
+      return matchesText && matchesTag;
+    });
+  }, [displayProjects, searchQuery, selectedTagFilter]);
+
+  const topPicks = useMemo(() => {
+    return [...filteredProjects]
+      .sort((a, b) => engagementScore(b.id) - engagementScore(a.id))
+      .slice(0, 3);
+  }, [filteredProjects, likeCounts, commentCounts]);
+
+  const topPickIds = new Set(topPicks.map((project) => project.id));
+
+  const feedStats = useMemo(() => {
+    const visualPosts = filteredProjects.filter((project: any) => !!project.cover_url).length;
+    return [
+      { label: "Posts", value: filteredProjects.length, icon: Globe, note: "Live now" },
+      { label: "Visual", value: visualPosts, icon: ImageIcon, note: "With cover image" },
+      { label: "Hot Tags", value: popularTags.length, icon: Hash, note: "Trending topics" },
+    ];
+  }, [filteredProjects, popularTags.length]);
 
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime();
@@ -174,320 +361,226 @@ export default function FeedPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Animated Marquee Banner */}
-      <div className="overflow-hidden py-3 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border-b border-border/30">
-        <motion.div
-          className="flex gap-6 whitespace-nowrap"
-          animate={{ x: [0, -1000] }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+    <div className="p-6 md:p-8 max-w-2xl mx-auto">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+        <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground">
+          Feed<span className="text-primary">.</span>
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm">Latest from the creative community.</p>
+      </motion.div>
+
+      {/* Tabs */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex gap-1 mb-6 p-1 bg-secondary/50 rounded-lg w-fit">
+        <button
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === "latest" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setActiveTab("latest")}
         >
-          {[...MARQUEE_WORDS, ...MARQUEE_WORDS].map((word, i) => (
-            <span key={i} className="text-sm font-display font-bold text-primary/40 select-none">
-              {word} <span className="text-accent/30">·</span>
-            </span>
-          ))}
-        </motion.div>
-      </div>
-
-      <div className="p-6 md:p-8">
-        {/* Hero Title */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 200, damping: 20 }}
-          className="mb-6"
+          <Globe size={14} className="inline mr-1.5" /> Latest
+        </button>
+        <button
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === "trending" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setActiveTab("trending")}
         >
-          <h1 className="font-display text-3xl md:text-4xl font-extrabold text-foreground">
-            <motion.span
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              Your
-            </motion.span>{" "}
-            <motion.span
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"
-            >
-              Creative
-            </motion.span>{" "}
-            <motion.span
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              Feed<span className="text-primary">.</span>
-            </motion.span>
-          </h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="text-muted-foreground mt-2 text-sm"
-          >
-            Discover what the community is building today.
-          </motion.p>
-        </motion.div>
+          <Flame size={14} className="inline mr-1.5" /> Trending
+        </button>
+      </motion.div>
 
-        {/* Dynamic Suggestions */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="flex gap-2 mb-6 overflow-x-auto pb-1"
-        >
-          {SUGGESTIONS.map((s, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.4 + i * 0.1 }}
-              whileHover={{ scale: 1.05, y: -2 }}
-              className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary/60 border border-border/30 text-xs font-medium whitespace-nowrap cursor-pointer hover:border-primary/30 transition-colors"
-            >
-              <s.icon size={14} className={s.color} />
-              {s.text}
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex gap-1 mb-6 p-1 bg-secondary/50 rounded-lg w-fit"
-        >
-          <button
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === "latest" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            onClick={() => setActiveTab("latest")}
-          >
-            <Globe size={14} className="inline mr-1.5" /> Latest
-          </button>
-          <button
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === "trending" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            onClick={() => setActiveTab("trending")}
-          >
-            <Flame size={14} className="inline mr-1.5" /> Trending
-          </button>
-        </motion.div>
-
-        {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <Card key={i} className="border-border/50 animate-pulse">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-muted" />
-                    <div className="space-y-1.5 flex-1"><div className="h-4 bg-muted rounded w-1/4" /><div className="h-3 bg-muted rounded w-1/6" /></div>
-                  </div>
-                  <div className="h-48 bg-muted rounded-xl" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : displayProjects.length > 0 ? (
-          <div className="space-y-5">
-            <AnimatePresence>
-              {displayProjects.map((project, idx) => {
-                const creator = creators[project.user_id];
-                const liked = myLikes.includes(project.id);
-                const bookmarked = myBookmarks.includes(project.id);
-                const lc = likeCounts[project.id] ?? 0;
-                const cc = commentCounts[project.id] ?? 0;
-                const showComments = expandedComments === project.id;
-
-                return (
-                  <motion.div
-                    key={project.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.06, type: "spring", stiffness: 200, damping: 25 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                  >
-                    <Card className="border-border/50 hover:border-primary/10 transition-all overflow-hidden group hover:shadow-lg hover:shadow-primary/5">
-                      <CardContent className="p-0">
-                        {/* Author Header */}
-                        <div className="flex items-center gap-3 p-4 pb-3">
-                          <UserAvatar userId={project.user_id} avatarUrl={creator?.avatar_url} size={10} className="ring-2 ring-border group-hover:ring-primary/30 transition-all" />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold">
-                              <UserName userId={project.user_id} name={creator?.display_name} />
-                            </p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {creator?.username ? `@${creator.username} · ` : ""}{timeAgo(project.created_at)}
-                            </p>
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><MoreHorizontal size={16} /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link to={`/projects/${project.id}`} className="flex items-center gap-2">
-                                  <Eye size={14} /> View Project
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleShare(project)}>
-                                <Share2 size={14} className="mr-2" /> Copy Link
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-
-                        {/* Cover Image */}
-                        {project.cover_url && (
-                          <Link to={`/projects/${project.id}`}>
-                            <motion.div
-                              className="bg-secondary mx-4 rounded-xl overflow-hidden cursor-pointer"
-                              whileHover={{ scale: 1.01 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <img src={project.cover_url} alt="" className="w-full max-h-[400px] object-cover" />
-                            </motion.div>
-                          </Link>
-                        )}
-
-                        {/* Content */}
-                        <div className="px-4 pt-3">
-                          <Link to={`/projects/${project.id}`}>
-                            <h3 className="font-display font-bold text-base mb-1 hover:text-primary transition-colors">{project.title}</h3>
-                          </Link>
-                          {project.description && (
-                            <p className="text-sm text-muted-foreground mb-2 line-clamp-3">{project.description}</p>
-                          )}
-                          {project.tags && (project.tags as string[]).length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-3">
-                              {(project.tags as string[]).map(t => (
-                                <motion.span
-                                  key={t}
-                                  whileHover={{ scale: 1.1 }}
-                                  className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium cursor-pointer"
-                                >
-                                  #{t}
-                                </motion.span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-0.5 px-2 py-2 border-t border-border/30 mx-2">
-                          <Button
-                            variant="ghost" size="sm"
-                            className={`h-9 text-xs gap-1.5 rounded-full ${liked ? "text-destructive" : ""}`}
-                            onClick={() => likeMutation.mutate(project.id)}
-                          >
-                            <motion.div animate={liked ? { scale: [1, 1.4, 1] } : {}} transition={{ duration: 0.3 }}>
-                              <Heart size={16} fill={liked ? "currentColor" : "none"} />
-                            </motion.div>
-                            {lc > 0 && lc}
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-9 text-xs gap-1.5 rounded-full"
-                            onClick={() => { setExpandedComments(showComments ? null : project.id); setCommentingOn(showComments ? null : project.id); }}
-                          >
-                            <MessageCircle size={16} /> {cc > 0 && cc}
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-9 text-xs gap-1.5 rounded-full" onClick={() => handleShare(project)}>
-                            <Share2 size={16} />
-                          </Button>
-                          <div className="flex-1" />
-                          <Button variant="ghost" size="icon" className={`h-9 w-9 rounded-full ${bookmarked ? "text-primary" : ""}`}
-                            onClick={() => bookmarkMutation.mutate(project.id)}
-                          >
-                            <motion.div animate={bookmarked ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.2 }}>
-                              {bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
-                            </motion.div>
-                          </Button>
-                        </div>
-
-                        {/* Comments Section (scoped to this project) */}
-                        <AnimatePresence>
-                          {showComments && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="px-4 pb-4 space-y-3">
-                                {commentsData.length > 0 && (
-                                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                                    {commentsData.map((comment, ci) => (
-                                      <motion.div
-                                        key={comment.id}
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: ci * 0.03 }}
-                                        className="flex gap-2 group/comment"
-                                      >
-                                        <UserAvatar userId={comment.user_id} avatarUrl={comment.profile?.avatar_url} size={7} />
-                                        <div className="flex-1 bg-secondary/50 rounded-xl px-3 py-2">
-                                          <div className="flex items-center justify-between">
-                                            <p className="text-xs font-medium">
-                                              <UserName userId={comment.user_id} name={comment.profile?.display_name} />
-                                            </p>
-                                            {comment.user_id === user!.id && (
-                                              <button
-                                                className="opacity-0 group-hover/comment:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
-                                                onClick={() => deleteCommentMutation.mutate({ commentId: comment.id, projectId: project.id })}
-                                              >
-                                                <Trash2 size={12} />
-                                              </button>
-                                            )}
-                                          </div>
-                                          <p className="text-xs text-muted-foreground">{comment.content}</p>
-                                        </div>
-                                      </motion.div>
-                                    ))}
-                                  </div>
-                                )}
-                                <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (commentText.trim()) commentMutation.mutate({ projectId: project.id, content: commentText.trim() }); }}>
-                                  <Input
-                                    value={commentingOn === project.id ? commentText : ""}
-                                    onChange={e => { setCommentText(e.target.value); setCommentingOn(project.id); }}
-                                    placeholder="Write a comment..."
-                                    className="flex-1 h-9 text-sm rounded-full"
-                                    autoFocus
-                                  />
-                                  <Button variant="hero" size="icon" className="h-9 w-9 shrink-0 rounded-full" type="submit">
-                                    <Send size={14} />
-                                  </Button>
-                                </form>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
-        ) : (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring" }}>
-            <Card className="border-border/50 border-dashed">
-              <CardContent className="py-16 flex flex-col items-center text-center">
-                <motion.div
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                  className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4"
-                >
-                  <Globe size={28} className="text-primary" />
-                </motion.div>
-                <h3 className="font-display font-bold text-lg text-foreground mb-1">No posts yet</h3>
-                <p className="text-sm text-muted-foreground max-w-sm">Create a public project and it will appear in the feed.</p>
+      {isLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => (
+            <Card key={i} className="border-border/50 animate-pulse">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-muted" />
+                  <div className="space-y-1.5 flex-1"><div className="h-4 bg-muted rounded w-1/4" /><div className="h-3 bg-muted rounded w-1/6" /></div>
+                </div>
+                <div className="h-48 bg-muted rounded-xl" />
               </CardContent>
             </Card>
-          </motion.div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : displayProjects.length > 0 ? (
+        <div className="space-y-5">
+          <AnimatePresence>
+            {displayProjects.map((project, idx) => {
+              const creator = creators[project.user_id];
+              const liked = myLikes.includes(project.id);
+              const bookmarked = myBookmarks.includes(project.id);
+              const lc = likeCounts[project.id] ?? 0;
+              const cc = commentCounts[project.id] ?? 0;
+              const showComments = expandedComments === project.id;
+
+              return (
+                <motion.div
+                  key={project.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05, type: "spring", stiffness: 300, damping: 30 }}
+                >
+                  <Card className="border-border/50 hover:border-primary/10 transition-all overflow-hidden">
+                    <CardContent className="p-0">
+                      {/* Author Header */}
+                      <div className="flex items-center gap-3 p-4 pb-3">
+                        <UserAvatar userId={project.user_id} avatarUrl={creator?.avatar_url} size={10} className="ring-2 ring-border" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold">
+                            <UserName userId={project.user_id} name={creator?.display_name} />
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {creator?.username ? `@${creator.username} · ` : ""}{timeAgo(project.created_at)}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                          <MoreHorizontal size={16} />
+                        </Button>
+                      </div>
+
+                      {/* Cover Image */}
+                      {project.cover_url && (
+                        <div className="bg-secondary mx-4 rounded-xl overflow-hidden">
+                          <img src={project.cover_url} alt="" className="w-full max-h-[400px] object-cover" />
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      <div className="px-4 pt-3">
+                        <h3 className="font-display font-bold text-base mb-1">{project.title}</h3>
+                        {project.description && (
+                          <p className="text-sm text-muted-foreground mb-2 line-clamp-3">{project.description}</p>
+                        )}
+
+                        {project.tags && (project.tags as string[]).length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {(project.tags as string[]).map(t => (
+                              <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">#{t}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-0.5 px-2 py-2 border-t border-border/30 mx-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`h-9 text-xs gap-1.5 rounded-full ${liked ? "text-destructive" : ""}`}
+                          onClick={() => likeMutation.mutate(project.id)}
+                        >
+                          <motion.div animate={liked ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
+                            <Heart size={16} fill={liked ? "currentColor" : "none"} />
+                          </motion.div>
+                          {lc > 0 && lc}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 text-xs gap-1.5 rounded-full"
+                          onClick={() => {
+                            setExpandedComments(showComments ? null : project.id);
+                            setCommentingOn(showComments ? null : project.id);
+                          }}
+                        >
+                          <MessageCircle size={16} /> {cc > 0 && cc}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 text-xs gap-1.5 rounded-full"
+                          onClick={() => handleShare(project)}
+                        >
+                          <Share2 size={16} />
+                        </Button>
+                        <div className="flex-1" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-9 w-9 rounded-full ${bookmarked ? "text-primary" : ""}`}
+                          onClick={() => bookmarkMutation.mutate(project.id)}
+                        >
+                          {bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                        </Button>
+                      </div>
+
+                      {/* Comments Section */}
+                      <AnimatePresence>
+                        {showComments && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-4 pb-4 space-y-3">
+                              {commentsData.length > 0 && (
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                  {commentsData.map(comment => (
+                                    <div key={comment.id} className="flex gap-2 group/comment">
+                                      <UserAvatar userId={comment.user_id} avatarUrl={comment.profile?.avatar_url} size={7} />
+                                      <div className="flex-1 bg-secondary/50 rounded-xl px-3 py-2">
+                                        <div className="flex items-center justify-between">
+                                          <p className="text-xs font-medium">
+                                            <UserName userId={comment.user_id} name={comment.profile?.display_name} />
+                                          </p>
+                                          {comment.user_id === user!.id && (
+                                            <button
+                                              className="opacity-0 group-hover/comment:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+                                              onClick={() => deleteCommentMutation.mutate({ commentId: comment.id, projectId: project.id })}
+                                            >
+                                              <Trash2 size={12} />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{comment.content}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <form
+                                className="flex gap-2"
+                                onSubmit={e => {
+                                  e.preventDefault();
+                                  if (commentText.trim()) {
+                                    commentMutation.mutate({ projectId: project.id, content: commentText.trim() });
+                                  }
+                                }}
+                              >
+                                <Input
+                                  value={commentingOn === project.id ? commentText : ""}
+                                  onChange={e => { setCommentText(e.target.value); setCommentingOn(project.id); }}
+                                  placeholder="Write a comment..."
+                                  className="flex-1 h-9 text-sm rounded-full"
+                                  autoFocus
+                                />
+                                <Button variant="hero" size="icon" className="h-9 w-9 shrink-0 rounded-full" type="submit">
+                                  <Send size={14} />
+                                </Button>
+                              </form>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Card className="border-border/50 border-dashed">
+            <CardContent className="py-16 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <Globe size={28} className="text-primary" />
+              </div>
+              <h3 className="font-display font-bold text-lg text-foreground mb-1">No posts yet</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">Create a public project and it will appear in the feed.</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </div>
   );
 }
+

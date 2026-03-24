@@ -337,15 +337,15 @@ export function EventCard({
 
       {/* Enhanced Share Modal */}
       <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">Share Event</DialogTitle>
+            <DialogTitle className="font-display text-lg">Share Event</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-3 py-2">
             {/* Event Preview */}
-            <div className="bg-secondary/50 rounded-lg p-3 border border-border/50">
-              <h4 className="font-semibold text-sm mb-1">{event.title}</h4>
+            <div className="bg-secondary/50 rounded-lg p-2 border border-border/50">
+              <h4 className="font-semibold text-xs mb-0.5">{event.title}</h4>
               <p className="text-xs text-muted-foreground line-clamp-2">
                 {event.description || "Join us for this amazing event!"}
               </p>
@@ -359,7 +359,7 @@ export function EventCard({
               <textarea
                 value={shareMessage}
                 onChange={(e) => setShareMessage(e.target.value)}
-                className="w-full p-2 rounded-lg bg-secondary/50 border border-border text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full p-2 rounded-lg bg-secondary/50 border border-border text-xs resize-none h-16 focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Write your message..."
               />
             </div>
