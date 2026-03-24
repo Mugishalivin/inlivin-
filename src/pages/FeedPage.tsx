@@ -39,6 +39,10 @@ export default function FeedPage() {
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const searchBoxRef = useRef<HTMLDivElement | null>(null);
 
+  const marqueeWords = ["Imagine", "Create", "Share", "Inspire", "Design", "Launch"];
+  const [heroAnimated, setHeroAnimated] = useState(false);
+  const [chipOptions] = useState(["3D", "Concept", "Branding", "AI Art", "Mobile", "UX"]);
+
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["feed-projects"],
     queryFn: async () => {
@@ -380,12 +384,61 @@ export default function FeedPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-2xl mx-auto">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground">
-          Feed<span className="text-primary">.</span>
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">Latest from the creative community.</p>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-4 overflow-hidden rounded-xl bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-cyan-500/20 border border-white/10"
+      >
+        <div className="flex animate-marquee whitespace-nowrap text-xs md:text-sm tracking-widest text-primary/90 px-2 py-1 font-semibold gap-8">
+          {marqueeWords.concat(marqueeWords).map((word, idx) => (
+            <span key={`${word}-${idx}`} className="inline-flex items-center gap-2">
+              {word}
+              <span className="text-primary/70">•</span>
+            </span>
+          ))}
+        </div>
       </motion.div>
+
+      <motion.div
+        initial="hidden"
+        animate={heroAnimated ? "visible" : "hidden"}
+        onAnimationComplete={() => setHeroAnimated(true)}
+        className="mb-6"
+        variants={{
+          hidden: { opacity: 0, y: -6 },
+          visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.08, delayChildren: 0.1 } }
+        }}
+      >
+        <div className="space-y-2">
+          {['Feed', 'Your', 'Creative', 'World'].map((word, idx) => (
+            <motion.h1
+              key={word}
+              variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
+              className="font-display text-3xl md:text-5xl font-extrabold tracking-tight"
+              style={{
+                backgroundImage: 'linear-gradient(90deg, #a855f7, #22d3ee, #fb7185)',
+                WebkitBackgroundClip: 'text',
+                color: 'transparent',
+              }}
+            >
+              {word}
+            </motion.h1>
+          ))}
+          <p className="text-muted-foreground text-sm">Latest from the creative community.</p>
+        </div>
+      </motion.div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {chipOptions.map((chip) => (
+          <button
+            key={chip}
+            className="px-3 py-1.5 rounded-full border border-white/10 bg-background/70 text-xs font-medium text-muted-foreground hover:bg-primary/15 hover:text-primary transition-all duration-200 transform hover:-translate-y-0.5"
+            onClick={() => { setSearchQuery(chip); setSelectedTagFilter(chip); }}
+          >
+            {chip}
+          </button>
+        ))}
+      </div>
 
       {/* Tabs */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex gap-1 mb-6 p-1 bg-secondary/50 rounded-lg w-fit">
@@ -455,8 +508,8 @@ export default function FeedPage() {
 
                       {/* Cover Image */}
                       {project.cover_url && (
-                        <div className="bg-secondary mx-4 rounded-xl overflow-hidden">
-                          <img src={project.cover_url} alt="" className="w-full max-h-[400px] object-cover" />
+                        <div className="bg-secondary mx-4 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.01]">
+                          <img src={project.cover_url} alt="" className="w-full max-h-[400px] object-cover transition-transform duration-300 hover:scale-105" />
                         </div>
                       )}
 
@@ -470,7 +523,7 @@ export default function FeedPage() {
                         {project.tags && (project.tags as string[]).length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mb-3">
                             {(project.tags as string[]).map(t => (
-                              <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">#{t}</span>
+                              <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium transition-all duration-200 hover:bg-primary/20 hover:text-primary/90 hover:scale-105">#{t}</span>
                             ))}
                           </div>
                         )}
@@ -588,12 +641,17 @@ export default function FeedPage() {
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Card className="border-border/50 border-dashed">
-            <CardContent className="py-16 flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <Globe size={28} className="text-primary" />
-              </div>
-              <h3 className="font-display font-bold text-lg text-foreground mb-1">No posts yet</h3>
-              <p className="text-sm text-muted-foreground max-w-sm">Create a public project and it will appear in the feed.</p>
+            <CardContent className="py-16 flex flex-col items-center text-center gap-4">
+              <motion.div animate={{ rotate: [0, 15, -12, 0] }} transition={{ duration: 2.2, repeat: Infinity }} className="w-18 h-18 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 shadow-lg">
+                <Globe size={30} className="text-primary" />
+              </motion.div>
+              <motion.h3 initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 180 }} className="font-display font-bold text-lg text-foreground mb-1">
+                No posts yet
+              </motion.h3>
+              <p className="text-sm text-muted-foreground max-w-sm">Create a public project and it will appear in the feed. Until then, enjoy exploring inspiration.</p>
+              <motion.span animate={{ y: [0, -6, 0] }} transition={{ duration: 1.6, repeat: Infinity }} className="text-xl">
+                🎨✨
+              </motion.span>
             </CardContent>
           </Card>
         </motion.div>
