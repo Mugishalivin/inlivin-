@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -218,25 +219,25 @@ export default function MessagesPage() {
         }
       }
 
-      const { data: convo, error: convoErr } = await supabase
+      // Generate ID client-side to avoid SELECT policy blocking after insert
+      const convoId = crypto.randomUUID();
+      const { error: convoErr } = await supabase
         .from("conversations")
-        .insert({})
-        .select()
-        .single();
+        .insert({ id: convoId });
       if (convoErr) throw convoErr;
 
-      // Insert participants one at a time to avoid RLS issues
+      // Insert self first so we become a member
       const { error: selfErr } = await supabase
         .from("conversation_participants")
-        .insert({ conversation_id: convo.id, user_id: user!.id });
+        .insert({ conversation_id: convoId, user_id: user!.id });
       if (selfErr) throw selfErr;
 
       const { error: otherErr } = await supabase
         .from("conversation_participants")
-        .insert({ conversation_id: convo.id, user_id: otherUserId });
+        .insert({ conversation_id: convoId, user_id: otherUserId });
       if (otherErr) throw otherErr;
 
-      return convo.id;
+      return convoId;
     },
     onSuccess: (convoId) => {
       setActiveConvo(convoId);
