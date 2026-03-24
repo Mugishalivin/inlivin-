@@ -363,13 +363,13 @@ export default function MessagesPage() {
   }, {});
 
   // Filter messages by search
-  const filteredGroupedMessages = showChatSearch && searchInChat.trim()
+  const filteredGroupedMessages: Record<string, typeof messages> = showChatSearch && searchInChat.trim()
     ? Object.fromEntries(
         Object.entries(groupedMessages).map(([date, msgs]) => [
           date,
           msgs.filter(m => m.content.toLowerCase().includes(searchInChat.toLowerCase()))
         ]).filter(([, msgs]) => (msgs as any[]).length > 0)
-      )
+      ) as Record<string, typeof messages>
     : groupedMessages;
 
   const pinnedMessages = messages.filter(m => starredMsgs.has(m.id));
