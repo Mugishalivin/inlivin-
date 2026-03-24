@@ -13,7 +13,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { Megaphone, Tag, Image, Trash2, Plus, ExternalLink } from "lucide-react";
+import { Megaphone, Tag, Image, Trash2, Plus, ExternalLink, Users, Share2, Calendar, FolderOpen, BarChart3, FileText, MessageCircle } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { SocialPlatformCard } from "@/components/admin/SocialPlatformCard";
+import { UnifiedInbox } from "@/components/admin/UnifiedInbox";
+import { ContentCalendar } from "@/components/admin/ContentCalendar";
+import { AssetLibrary } from "@/components/admin/AssetLibrary";
+import { CompetitorBenchmark } from "@/components/admin/CompetitorBenchmark";
+import { ReportGenerator } from "@/components/admin/ReportGenerator";
+import { mockSocialPlatforms } from "@/lib/admin-mocks";
 
 async function uploadAdminMedia(userId: string, file: File) {
   const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
@@ -308,19 +316,73 @@ export default function AdminPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-7xl mx-auto"
       >
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage announcements, promotions, and advertisements</p>
+          <h1 className="text-5xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+            Ilivinn Platform Admin
+          </h1>
+          <p className="text-xl text-gray-600 font-medium">Unified management, analytics, publishing &amp; workflows</p>
         </div>
 
-        <Tabs defaultValue="announcements" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20">
+            <CardContent className="p-8">
+              <div className="text-4xl font-black text-primary mb-2">Sprinklr + Coupler.io</div>
+              <p className="text-lg text-muted-foreground">Core operational features, advanced analytics, workflow automation</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-8">
+              <h3 className="text-2xl font-bold mb-2">Key Metrics</h3>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-black text-primary">12.5k</div>
+                  <div className="text-sm text-muted-foreground">Total Followers</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-destructive">3.8%</div>
+                  <div className="text-sm text-muted-foreground">Avg Engagement</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-green-600">24h</div>
+                  <div className="text-sm text-muted-foreground">Response Time</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="social" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+            <TabsTrigger value="social" className="flex items-center gap-2">
+              <Share2 className="w-4 h-4" />
+              Social
+            </TabsTrigger>
+            <TabsTrigger value="inbox" className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Inbox
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger value="assets" className="flex items-center gap-2">
+              <FolderOpen className="w-4 h-4" />
+              Assets
+            </TabsTrigger>
+            <TabsTrigger value="competitors" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Competitors
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Reports
+            </TabsTrigger>
             <TabsTrigger value="announcements" className="flex items-center gap-2">
               <Megaphone className="w-4 h-4" />
               Announcements
@@ -338,6 +400,34 @@ export default function AdminPage() {
               Users
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="social" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {mockSocialPlatforms.map((platform) => (
+                <SocialPlatformCard key={platform.id} platform={platform as any} />
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="inbox">
+            <UnifiedInbox />
+          </TabsContent>
+
+          <TabsContent value="calendar">
+            <ContentCalendar />
+          </TabsContent>
+
+          <TabsContent value="assets">
+            <AssetLibrary />
+          </TabsContent>
+
+          <TabsContent value="competitors">
+            <CompetitorBenchmark />
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <ReportGenerator />
+          </TabsContent>
 
           <TabsContent value="announcements">
             <Card>
@@ -427,6 +517,7 @@ export default function AdminPage() {
       </motion.div>
     </div>
   );
+
 }
 
 // Component definitions

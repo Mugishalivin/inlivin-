@@ -1,6 +1,6 @@
 import {
   Home, FolderOpen, MessageCircle, Compass, Settings, LogOut, User,
-  Bell, Globe, Calendar, BarChart3, Bookmark, Megaphone
+  Bell, Globe, Calendar, BarChart3, Bookmark, Layers3, Users
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate, Link } from "react-router-dom";
@@ -32,7 +32,7 @@ const mainNav = [
 
 const secondaryNav = [
   { title: "Events", url: "/events", icon: Calendar },
-  { title: "Content Pipeline", url: "/content-pipeline", icon: Megaphone },
+  { title: "Studio", url: "/studio", icon: Layers3 },
   { title: "Notifications", url: "/notifications", icon: Bell },
   { title: "Bookmarks", url: "/bookmarks", icon: Bookmark },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },

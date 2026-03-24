@@ -105,7 +105,7 @@ export default function MessagesPage() {
     if (chatWithUserId && user) {
       startConversation.mutate(chatWithUserId);
     }
-  }, [chatWithUserId, user]);
+  }, [chatWithUserId, startConversation, user]);
 
   // Fetch conversations
   const { data: conversations = [], isLoading: convoLoading } = useQuery({

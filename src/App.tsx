@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -67,7 +67,8 @@ const App = () => (
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/profile/:userId" element={<UserProfilePage />} />
               <Route path="/admin" element={<AdminPage />} />
-              <Route path="/content-pipeline" element={<ContentPipelinePage />} />
+              <Route path="/studio" element={<ContentPipelinePage />} />
+              <Route path="/content-pipeline" element={<Navigate to="/studio" replace />} />
               <Route path="/content/:contentType/:contentId" element={<ContentDetailPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />

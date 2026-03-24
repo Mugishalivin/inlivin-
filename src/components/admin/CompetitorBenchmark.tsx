@@ -1,0 +1,1 @@
+﻿export { CompetitorBenchmark } from "./SocialPlatformCard";

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -25,7 +26,11 @@ export default function LoginPage() {
       toast.error(error.message);
     } else {
       toast.success("Welcome back!");
-      navigate("/dashboard");
+      // Role-based redirect
+      setTimeout(() => {
+        const { role } = useAuth();
+        navigate(role === 'admin' ? '/admin' : '/dashboard');
+      }, 100);
     }
   };
 
