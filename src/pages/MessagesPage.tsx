@@ -219,17 +219,17 @@ export default function MessagesPage() {
         }
       }
 
-      const { data: convo, error: convoErr } = await supabase
+      // Generate ID client-side to avoid SELECT policy blocking after insert
+      const convoId = crypto.randomUUID();
+      const { error: convoErr } = await supabase
         .from("conversations")
-        .insert({})
-        .select()
-        .single();
+        .insert({ id: convoId });
       if (convoErr) throw convoErr;
 
-      // Insert participants one at a time to avoid RLS issues
+      // Insert self first so we become a member
       const { error: selfErr } = await supabase
         .from("conversation_participants")
-        .insert({ conversation_id: convo.id, user_id: user!.id });
+        .insert({ conversation_id: convoId, user_id: user!.id });
       if (selfErr) throw selfErr;
 
       const { error: otherErr } = await supabase
