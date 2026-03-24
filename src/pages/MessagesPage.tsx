@@ -234,10 +234,10 @@ export default function MessagesPage() {
 
       const { error: otherErr } = await supabase
         .from("conversation_participants")
-        .insert({ conversation_id: convo.id, user_id: otherUserId });
+        .insert({ conversation_id: convoId, user_id: otherUserId });
       if (otherErr) throw otherErr;
 
-      return convo.id;
+      return convoId;
     },
     onSuccess: (convoId) => {
       setActiveConvo(convoId);
