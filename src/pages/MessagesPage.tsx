@@ -280,6 +280,8 @@ export default function MessagesPage() {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       toast.success("Conversation removed");
     },
+  });
+
   const formatTime = (date: string) => {
     const d = new Date(date);
     const now = new Date();
