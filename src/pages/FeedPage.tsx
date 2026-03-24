@@ -8,18 +8,36 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Bookmark, BookmarkCheck, Send, Globe,
-  TrendingUp, Flame, Share2, MoreHorizontal, Trash2
+  TrendingUp, Flame, Share2, MoreHorizontal, Trash2,
+  Hash,
+  ImageIcon,
+  Search,
+  Sparkles,
+  Zap
 } from "lucide-react";
-import { useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { UserAvatar, UserName } from "@/components/UserLink";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 
+type SearchSuggestion = {
+  type: "tag" | "search" | "title";
+  value: string;
+  label: string;
+  meta: string;
+  icon: React.ComponentType<any>;
+};
+
 export default function FeedPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"latest" | "trending">("latest");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const searchBoxRef = useRef<HTMLDivElement | null>(null);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["feed-projects"],
@@ -136,7 +154,7 @@ export default function FeedPage() {
     setShowSuggestions(false);
   };
 
-  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const onSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (!dynamicSuggestions.length) return;
 
     if (event.key === "ArrowDown") {
