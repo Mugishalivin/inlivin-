@@ -84,31 +84,6 @@ export default function UserProfilePage() {
     },
   });
 
-  const startChat = useMutation({
-    mutationFn: async () => {
-      const { data: myConvos } = await supabase.from("conversation_participants").select("conversation_id").eq("user_id", user!.id);
-      if (myConvos?.length) {
-        for (const mc of myConvos) {
-          const { data: other } = await supabase.from("conversation_participants").select("id").eq("conversation_id", mc.conversation_id).eq("user_id", userId!).single();
-          if (other) return mc.conversation_id;
-        }
-      }
-      const { data: convo, error } = await supabase.from("conversations").insert({}).select().single();
-      if (error) throw error;
-      
-      // Insert participants one at a time to avoid RLS issues
-      const { error: selfErr } = await supabase.from("conversation_participants").insert({ conversation_id: convo.id, user_id: user!.id });
-      if (selfErr) throw selfErr;
-      
-      const { error: otherErr } = await supabase.from("conversation_participants").insert({ conversation_id: convo.id, user_id: userId! });
-      if (otherErr) throw otherErr;
-      
-      return convo.id;
-    },
-    onSuccess: () => navigate("/messages"),
-    onError: (err: any) => toast.error(err.message),
-  });
-
   const isOwnProfile = user?.id === userId;
 
   if (isLoading) {
@@ -139,17 +114,12 @@ export default function UserProfilePage() {
       </Button>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-        {/* Profile Header */}
         <Card className="border-border/50 overflow-hidden mb-6">
           <div className="h-24 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/5" />
           <CardContent className="p-5 -mt-12">
             <div className="flex items-end gap-4 mb-4">
               <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center overflow-hidden ring-4 ring-background shrink-0">
-                {profile.avatar_url ? (
-                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <User size={32} className="text-muted-foreground" />
-                )}
+                {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" /> : <User size={32} className="text-muted-foreground" />}
               </div>
               <div className="flex-1 min-w-0 pb-1">
                 <h1 className="font-display text-xl font-extrabold text-foreground truncate">{profile.display_name || "Artist"}</h1>
@@ -191,7 +161,7 @@ export default function UserProfilePage() {
                 <Button variant={isFollowing ? "outline" : "hero"} size="sm" onClick={() => followMutation.mutate()}>
                   {isFollowing ? <><UserCheck size={14} className="mr-1" /> Following</> : <><UserPlus size={14} className="mr-1" /> Follow</>}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => startChat.mutate()}>
+                <Button variant="outline" size="sm" onClick={() => navigate(`/messages?chatWith=${userId}`)}>
                   <MessageCircle size={14} className="mr-1" /> Message
                 </Button>
               </div>
@@ -202,7 +172,6 @@ export default function UserProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Projects */}
         <h2 className="font-display text-lg font-bold mb-4">Projects<span className="text-primary">.</span></h2>
         {projects.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -210,17 +179,19 @@ export default function UserProfilePage() {
               const CatIcon = categoryIcons[p.category || "other"] || FolderOpen;
               return (
                 <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                  <Card className="border-border/50 hover:border-primary/20 transition-all overflow-hidden">
-                    <div className="h-24 bg-secondary overflow-hidden">
-                      {p.cover_url ? <img src={p.cover_url} alt="" className="w-full h-full object-cover" /> : (
-                        <div className="w-full h-full flex items-center justify-center"><CatIcon size={24} className="text-muted-foreground/30" /></div>
-                      )}
-                    </div>
-                    <CardContent className="p-3">
-                      <h3 className="text-xs font-bold truncate">{p.title}</h3>
-                      <p className="text-[10px] text-muted-foreground capitalize">{p.category}</p>
-                    </CardContent>
-                  </Card>
+                  <Link to={`/projects/${p.id}`}>
+                    <Card className="border-border/50 hover:border-primary/20 transition-all overflow-hidden">
+                      <div className="h-24 bg-secondary overflow-hidden">
+                        {p.cover_url ? <img src={p.cover_url} alt="" className="w-full h-full object-cover" /> : (
+                          <div className="w-full h-full flex items-center justify-center"><CatIcon size={24} className="text-muted-foreground/30" /></div>
+                        )}
+                      </div>
+                      <CardContent className="p-3">
+                        <h3 className="text-xs font-bold truncate">{p.title}</h3>
+                        <p className="text-[10px] text-muted-foreground capitalize">{p.category}</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 </motion.div>
               );
             })}
