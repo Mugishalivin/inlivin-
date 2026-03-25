@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<'admin' | 'moderator' | 'user' | null>(null);
   const [loading, setLoading] = useState(true);
+  const userIdRef = useRef<string | null>(null);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -66,54 +67,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    userIdRef.current = user?.id ?? null;
+  }, [user]);
+
+  useEffect(() => {
+    let alive = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      async (_event, nextSession) => {
+        if (!alive) return;
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+        if (nextSession?.user) {
+          const nextUserId = nextSession.user.id;
+          setTimeout(() => {
+            if (!alive) return;
+            fetchProfile(nextUserId);
+            fetchRole(nextUserId);
+            touchLastSeen(nextUserId);
+          }, 0);
+        } else {
+          setProfile(null);
+          setRole(null);
+        }
         setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session: nextSession } }) => {
+      if (!alive) return;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      if (nextSession?.user) {
+        fetchProfile(nextSession.user.id);
+        fetchRole(nextSession.user.id);
+        touchLastSeen(nextSession.user.id);
+      }
       setLoading(false);
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!user) {
-      setProfile(null);
-      setRole(null);
-      return;
-    }
-
-    fetchProfile(user.id);
-    fetchRole(user.id);
-    touchLastSeen(user.id);
-
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible" && user.id) {
-        touchLastSeen(user.id);
+      const activeUserId = userIdRef.current;
+      if (document.visibilityState === "visible" && activeUserId) {
+        touchLastSeen(activeUserId);
       }
     };
 
     document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      alive = false;
+      subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
     const heartbeat = window.setInterval(() => {
       touchLastSeen(user.id);
     }, 60000);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.clearInterval(heartbeat);
-    };
-  }, [user]);
+    return () => window.clearInterval(heartbeat);
+  }, [user?.id]);
 
   const signOut = async () => {
+    localStorage.setItem("logout_at", new Date().toISOString());
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { formatDistanceToNow } from "date-fns";
 import {
   User, MapPin, Globe, UserPlus, UserCheck, MessageCircle,
   FolderOpen, Heart, Calendar, ArrowLeft, Music, Image, Video, ExternalLink
@@ -85,6 +86,9 @@ export default function UserProfilePage() {
   });
 
   const isOwnProfile = user?.id === userId;
+  const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at) : null;
+  const isActiveNow = !!lastSeen && Date.now() - lastSeen.getTime() <= 2 * 60 * 1000;
+  const lastActiveLabel = lastSeen ? `Last active ${formatDistanceToNow(lastSeen, { addSuffix: true })}` : null;
 
   if (isLoading) {
     return (
@@ -124,6 +128,16 @@ export default function UserProfilePage() {
               <div className="flex-1 min-w-0 pb-1">
                 <h1 className="font-display text-xl font-extrabold text-foreground truncate">{profile.display_name || "Artist"}</h1>
                 {profile.username && <p className="text-sm text-muted-foreground">@{profile.username}</p>}
+                <div className="mt-1">
+                  {isActiveNow ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-600">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      Active now
+                    </span>
+                  ) : lastActiveLabel ? (
+                    <span className="rounded-full bg-secondary/70 px-2 py-1 text-xs text-muted-foreground">{lastActiveLabel}</span>
+                  ) : null}
+                </div>
               </div>
             </div>
 

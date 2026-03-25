@@ -248,29 +248,112 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachment_kind: string
+          attachment_mime_type: string | null
+          attachment_name: string | null
+          attachment_url: string | null
           content: string
           conversation_id: string
           created_at: string
+          deleted_for_all: boolean
+          call_session_id: string | null
           id: string
           sender_id: string
         }
         Insert: {
+          attachment_kind?: string
+          attachment_mime_type?: string | null
+          attachment_name?: string | null
+          attachment_url?: string | null
           content: string
           conversation_id: string
           created_at?: string
+          deleted_for_all?: boolean
+          call_session_id?: string | null
           id?: string
           sender_id: string
         }
         Update: {
+          attachment_kind?: string
+          attachment_mime_type?: string | null
+          attachment_name?: string | null
+          attachment_url?: string | null
           content?: string
           conversation_id?: string
           created_at?: string
+          deleted_for_all?: boolean
+          call_session_id?: string | null
           id?: string
           sender_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_sessions: {
+        Row: {
+          accepted_at: string | null
+          answer_sdp: string | null
+          burst_emojis: string[]
+          callee_candidates: Json
+          caller_candidates: Json
+          conversation_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          initiator_id: string
+          mode: string
+          offer_sdp: string | null
+          recipient_id: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          answer_sdp?: string | null
+          burst_emojis?: string[]
+          callee_candidates?: Json
+          caller_candidates?: Json
+          conversation_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          initiator_id: string
+          mode?: string
+          offer_sdp?: string | null
+          recipient_id: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          answer_sdp?: string | null
+          burst_emojis?: string[]
+          callee_candidates?: Json
+          caller_candidates?: Json
+          conversation_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          initiator_id?: string
+          mode?: string
+          offer_sdp?: string | null
+          recipient_id?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sessions_conversation_id_fkey"
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
@@ -313,6 +396,32 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      message_hidden: {
+        Row: {
+          hidden_at: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          hidden_at?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          hidden_at?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_hidden_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_settings: {
         Row: {
@@ -368,6 +477,7 @@ export type Database = {
           genres: string[] | null
           id: string
           location: string | null
+          last_seen_at: string | null
           skills: string[] | null
           updated_at: string
           user_id: string
@@ -382,6 +492,7 @@ export type Database = {
           genres?: string[] | null
           id?: string
           location?: string | null
+          last_seen_at?: string | null
           skills?: string[] | null
           updated_at?: string
           user_id: string
@@ -396,6 +507,7 @@ export type Database = {
           genres?: string[] | null
           id?: string
           location?: string | null
+          last_seen_at?: string | null
           skills?: string[] | null
           updated_at?: string
           user_id?: string
