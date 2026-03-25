@@ -13,6 +13,7 @@ interface Profile {
   genres: string[];
   location: string | null;
   website: string | null;
+  last_seen_at: string | null;
 }
 
 interface AuthContextType {
@@ -59,21 +60,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const touchLastSeen = async (userId: string) => {
+    const now = new Date().toISOString();
+    await supabase.from("profiles").update({ last_seen_at: now }).eq("user_id", userId);
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        if (session?.user) {
-          // Use setTimeout to avoid potential deadlock with Supabase auth
-          setTimeout(() => {
-            fetchProfile(session.user.id);
-            fetchRole(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
         setLoading(false);
       }
     );
@@ -81,15 +77,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-        fetchRole(session.user.id);
-      }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      setRole(null);
+      return;
+    }
+
+    fetchProfile(user.id);
+    fetchRole(user.id);
+    touchLastSeen(user.id);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible" && user.id) {
+        touchLastSeen(user.id);
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    const heartbeat = window.setInterval(() => {
+      touchLastSeen(user.id);
+    }, 60000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearInterval(heartbeat);
+    };
+  }, [user]);
 
   const signOut = async () => {
     await supabase.auth.signOut();

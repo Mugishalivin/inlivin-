@@ -11,6 +11,7 @@ import { Eye, EyeOff, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,11 +27,8 @@ export default function LoginPage() {
       toast.error(error.message);
     } else {
       toast.success("Welcome back!");
-      // Role-based redirect
-      setTimeout(() => {
-        const { role } = useAuth();
-        navigate(role === 'admin' ? '/admin' : '/dashboard');
-      }, 100);
+      // Role-based redirect uses stored role from AuthContext (recently loaded)
+      navigate(role === 'admin' ? '/admin' : '/dashboard');
     }
   };
 
