@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -177,29 +177,72 @@ export default function MessagesPage() {
     }
   }, [chatWithUserId, startConversation, user]);
 
-  // Fetch conversations
+  // Fetch conversations (batch load participants + profiles + last message)
   const { data: conversations = [], isLoading: convoLoading } = useQuery({
-    queryKey: ["conversations"],
+    queryKey: ["conversations", user?.id],
     queryFn: async () => {
+      if (!user) return [];
       const { data: participations } = await supabase
-        .from("conversation_participants").select("conversation_id").eq("user_id", user!.id);
+        .from("conversation_participants")
+        .select("conversation_id, conversations(id, created_at, updated_at)")
+        .eq("user_id", user.id)
+        .order("joined_at", { ascending: false });
+
       if (!participations?.length) return [];
-      const convoIds = participations.map(p => p.conversation_id);
-      const { data: convos } = await supabase.from("conversations").select("*").in("id", convoIds).order("updated_at", { ascending: false });
-      const result: ConversationWithDetails[] = [];
-      for (const convo of convos ?? []) {
-        const { data: parts } = await supabase.from("conversation_participants").select("user_id").eq("conversation_id", convo.id).neq("user_id", user!.id);
-        const participants = [];
-        for (const p of parts ?? []) {
-          const { data: prof } = await supabase.from("profiles").select("display_name, avatar_url, username").eq("user_id", p.user_id).single();
-          participants.push({ user_id: p.user_id, profile: prof || { display_name: null, avatar_url: null, username: null } });
-        }
-        const { data: lastMsg } = await supabase.from("messages").select("content, created_at, sender_id").eq("conversation_id", convo.id).order("created_at", { ascending: false }).limit(1).single();
-        result.push({ ...convo, participants, lastMessage: lastMsg || undefined });
+
+      const conversationIds = participations.map((row) => row.conversation_id);
+
+      const { data: allParticipants } = await supabase
+        .from("conversation_participants")
+        .select("conversation_id, user_id")
+        .in("conversation_id", conversationIds)
+        .neq("user_id", user.id);
+
+      const otherUserIds = Array.from(new Set((allParticipants ?? []).map((p) => p.user_id)));
+      const profileMap = new Map<string, { display_name: string | null; avatar_url: string | null; username: string | null }>();
+      if (otherUserIds.length) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, display_name, avatar_url, username")
+          .in("user_id", otherUserIds);
+        (profiles ?? []).forEach((profile) => {
+          profileMap.set(profile.user_id, profile);
+        });
       }
-      return result;
+
+      const { data: lastMessages } = await supabase
+        .from("messages")
+        .select("conversation_id, content, created_at, sender_id")
+        .in("conversation_id", conversationIds)
+        .order("created_at", { ascending: false });
+
+      const lastMessageMap = new Map<string, { content: string; created_at: string; sender_id: string }>();
+      (lastMessages ?? []).forEach((msg) => {
+        if (!lastMessageMap.has(msg.conversation_id)) {
+          lastMessageMap.set(msg.conversation_id, msg as any);
+        }
+      });
+
+      return (participations ?? []).reduce<ConversationWithDetails[]>((acc, row) => {
+        const convo = (row as any).conversations;
+        const convoRecord = Array.isArray(convo) ? convo[0] : convo;
+        if (!convoRecord) return acc;
+
+        const participants = (allParticipants ?? [])
+          .filter((p) => p.conversation_id === convoRecord.id)
+          .map((p) => ({
+            user_id: p.user_id,
+            profile: profileMap.get(p.user_id) || { display_name: null, avatar_url: null, username: null },
+          }));
+
+        const lastMessage = lastMessageMap.get(convoRecord.id);
+        acc.push({ ...convoRecord, participants, lastMessage: lastMessage || undefined });
+        return acc;
+      }, []);
     },
     enabled: !!user,
+    staleTime: 1000 * 15,
+    gcTime: 1000 * 60 * 3,
   });
 
   // Fetch messages
@@ -272,8 +315,7 @@ export default function MessagesPage() {
             .not("last_seen_at", "is", null)
             .gte("last_seen_at", activeCutoff)
             .ilike("display_name", `%${term}%`)
-            .limit(10)
-            .catch(() => ({ data: [] })),
+            .limit(10),
           supabase
             .from("profiles")
             .select(select)
@@ -281,8 +323,7 @@ export default function MessagesPage() {
             .not("last_seen_at", "is", null)
             .gte("last_seen_at", activeCutoff)
             .ilike("username", `%${term}%`)
-            .limit(10)
-            .catch(() => ({ data: [] })),
+            .limit(10),
         ]);
         const merged = dedupeProfiles([
           ...(nameRes.data ?? []),
@@ -334,8 +375,7 @@ export default function MessagesPage() {
             .not("last_seen_at", "is", null)
             .gte("last_seen_at", activeCutoff)
             .ilike("display_name", `%${term}%`)
-            .limit(8)
-            .catch(() => ({ data: [] })),
+            .limit(8),
           supabase
             .from("profiles")
             .select("user_id, display_name, avatar_url, username, last_seen_at")
@@ -343,8 +383,7 @@ export default function MessagesPage() {
             .not("last_seen_at", "is", null)
             .gte("last_seen_at", activeCutoff)
             .ilike("username", `%${term}%`)
-            .limit(8)
-            .catch(() => ({ data: [] })),
+            .limit(8),
         ]);
         return dedupeProfiles([...(nameRes.data ?? []), ...(userRes.data ?? [])]);
       } catch (error) {
@@ -425,7 +464,7 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleInputChange = (val: string) => {
+  const handleInputChange = useCallback((val: string) => {
     setMessageText(val);
     if (!activeConvo || !user || !typingChannelRef.current) return;
     typingChannelRef.current.send({
@@ -433,10 +472,9 @@ export default function MessagesPage() {
       event: "typing",
       payload: { userId: user.id, isTyping: Boolean(val.trim()) },
     });
-  };
+  }, [activeConvo, user]);
 
-  // Send message
-  const sendMessage = useMutation({
+const sendMessage = useMutation({
     mutationFn: async () => {
       if (!activeConvo) return;
       const contentParts: string[] = [];
@@ -499,6 +537,7 @@ export default function MessagesPage() {
       setRecordSeconds(0);
       queryClient.invalidateQueries({ queryKey: ["messages", activeConvo] });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      toast.success("Message sent!");
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -589,7 +628,7 @@ export default function MessagesPage() {
           initiator_id: user!.id,
           recipient_id: otherUser.user_id,
           mode: callMode,
-          burst_emojis: [callBurstEmoji],
+          burst_emojis: [],
           status: "pending",
         })
         .select("*")
@@ -598,7 +637,7 @@ export default function MessagesPage() {
       await supabase.from("messages").insert({
         conversation_id: activeConversation.id,
         sender_id: user!.id,
-        content: `📞 ${callMode === "video" ? "Video" : "Voice"} invite sent ${callBurstEmoji}`,
+        content: `📞 Starting a ${callMode === "video" ? "video" : "voice"} call...`,
         call_session_id: data.id,
         attachment_kind: "call",
       });
@@ -608,7 +647,7 @@ export default function MessagesPage() {
       setActiveCallSessionId(session.id);
       setCallRoomOpen(true);
       setShowCallSheet(false);
-      toast.success("Call invite sent");
+      toast.success("Call started");
       queryClient.invalidateQueries({ queryKey: ["call-sessions", activeConvo] });
     },
     onError: (err: any) => toast.error(err.message),
@@ -685,45 +724,55 @@ export default function MessagesPage() {
   const isAudioUrl = (text: string) => /\.(mp3|wav|ogg|m4a|aac|webm)(\?.*)?$/i.test(text);
   const isLinkUrl = (text: string) => /^https?:\/\/[^\s]+$/i.test(text);
 
-  const addReaction = (msgId: string, emoji: string) => {
-    setReactions(prev => {
+  const addReaction = useCallback((msgId: string, emoji: string) => {
+    setReactions((prev) => {
       const existing = prev[msgId] || [];
-      if (existing.includes(emoji)) return { ...prev, [msgId]: existing.filter(e => e !== emoji) };
+      if (existing.includes(emoji)) return { ...prev, [msgId]: existing.filter((e) => e !== emoji) };
       return { ...prev, [msgId]: [...existing, emoji] };
     });
     setShowEmojiFor(null);
-  };
+  }, []);
 
-  const toggleStar = (msgId: string) => {
-    setStarredMsgs(prev => {
+  const toggleStar = useCallback((msgId: string) => {
+    setStarredMsgs((prev) => {
       const next = new Set(prev);
       if (next.has(msgId)) next.delete(msgId); else next.add(msgId);
       return next;
     });
-  };
+  }, []);
 
-  const toggleMute = (convoId: string) => {
-    setMutedConvos(prev => {
+  const toggleMute = useCallback((convoId: string) => {
+    setMutedConvos((prev) => {
       const next = new Set(prev);
-      if (next.has(convoId)) { next.delete(convoId); toast.success("Unmuted"); }
-      else { next.add(convoId); toast.success("Muted"); }
+      if (next.has(convoId)) {
+        next.delete(convoId);
+        toast.success("Unmuted");
+      } else {
+        next.add(convoId);
+        toast.success("Muted");
+      }
       return next;
     });
-  };
+  }, []);
 
-  const toggleArchive = (convoId: string) => {
-    setArchivedConvos(prev => {
+  const toggleArchive = useCallback((convoId: string) => {
+    setArchivedConvos((prev) => {
       const next = new Set(prev);
-      if (next.has(convoId)) { next.delete(convoId); toast.success("Unarchived"); }
-      else { next.add(convoId); toast.success("Archived"); }
+      if (next.has(convoId)) {
+        next.delete(convoId);
+        toast.success("Unarchived");
+      } else {
+        next.add(convoId);
+        toast.success("Archived");
+      }
       return next;
     });
-  };
+  }, []);
 
-  const copyMessage = (content: string) => {
+  const copyMessage = useCallback((content: string) => {
     navigator.clipboard.writeText(content);
     toast.success("Copied to clipboard");
-  };
+  }, []);
 
   const uploadRecordedVoiceNote = useCallback(async (blob: Blob, duration: number) => {
     const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: blob.type || "audio/webm" });
@@ -733,8 +782,9 @@ export default function MessagesPage() {
     const { data } = supabase.storage.from("project-files").getPublicUrl(path);
     setVoiceNoteUrl(data.publicUrl);
     setVoiceNoteLabel(`Voice note ${formatDuration(Math.max(1, duration))}`);
-    toast.success("Voice note ready to send");
-  }, [user]);
+    // Auto-send voice note after upload
+    setTimeout(() => sendMessage.mutate(), 300);
+  }, [user, sendMessage]);
 
   const cancelRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
@@ -960,45 +1010,63 @@ export default function MessagesPage() {
     });
   };
 
-  const visibleMessages = messages.filter((msg) => {
-    if (msg.deleted_for_all) return false;
-    return !hiddenMessageRows.some((row) => row.message_id === msg.id);
-  });
+  const visibleMessages = useMemo(() => {
+    if (!messages.length) return [];
+    const hiddenIds = new Set(hiddenMessageRows.map((row) => row.message_id));
+    return messages.filter((msg) => !msg.deleted_for_all && !hiddenIds.has(msg.id));
+  }, [messages, hiddenMessageRows]);
 
-  // Group messages by date
-  const groupedMessages = visibleMessages.reduce((groups: Record<string, typeof visibleMessages>, msg) => {
-    const date = new Date(msg.created_at).toLocaleDateString();
-    if (!groups[date]) groups[date] = [];
-    groups[date].push(msg);
-    return groups;
-  }, {});
+  const groupedMessages = useMemo(() => {
+    return visibleMessages.reduce((groups: Record<string, typeof visibleMessages>, msg) => {
+      const date = new Date(msg.created_at).toLocaleDateString();
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(msg);
+      return groups;
+    }, {});
+  }, [visibleMessages]);
 
-  // Filter messages by search
-  const filteredGroupedMessages: Record<string, typeof visibleMessages> = showChatSearch && searchInChat.trim()
-    ? Object.fromEntries(
-        Object.entries(groupedMessages).map(([date, msgs]) => [
-          date,
-          msgs.filter(m => m.content.toLowerCase().includes(searchInChat.toLowerCase()))
-        ]).filter(([, msgs]) => (msgs as Array<unknown>).length > 0)
-      ) as Record<string, typeof visibleMessages>
-    : groupedMessages;
+  const filteredGroupedMessages = useMemo((): Record<string, typeof visibleMessages> => {
+    if (!showChatSearch || !searchInChat.trim()) return groupedMessages as Record<string, typeof visibleMessages>;
+    const q = searchInChat.toLowerCase();
+    return Object.fromEntries(
+      Object.entries(groupedMessages as Record<string, typeof visibleMessages>)
+        .map(([date, msgs]) => [date, msgs.filter((m) => m.content.toLowerCase().includes(q))])
+        .filter(([, msgs]) => msgs.length > 0)
+    );
+  }, [showChatSearch, searchInChat, groupedMessages]);
 
-  const pinnedMessages = visibleMessages.filter(m => starredMsgs.has(m.id));
+  const pinnedMessages = useMemo(() => visibleMessages.filter((m) => starredMsgs.has(m.id)), [visibleMessages, starredMsgs]);
 
-  const filteredConversations = conversations.filter(c => {
-    if (archivedConvos.has(c.id) && !showArchived) return false;
-    if (showArchived && !archivedConvos.has(c.id)) return false;
-    if (!searchConvos.trim()) return true;
-    const name = c.participants[0]?.profile?.display_name || "";
-    const uname = c.participants[0]?.profile?.username || "";
-    return name.toLowerCase().includes(searchConvos.toLowerCase()) || uname.toLowerCase().includes(searchConvos.toLowerCase());
-  });
+  const filteredConversations = useMemo(() => {
+    const q = searchConvos.trim().toLowerCase();
+    const filtered = (conversations as ConversationWithDetails[]).filter((c) => {
+      if (archivedConvos.has(c.id) && !showArchived) return false;
+      if (showArchived && !archivedConvos.has(c.id)) return false;
+      if (!q) return true;
+      const name = c.participants[0]?.profile?.display_name || "";
+      const uname = c.participants[0]?.profile?.username || "";
+      return name.toLowerCase().includes(q) || uname.toLowerCase().includes(q);
+    });
 
-  const activeConversation = activeConvo ? conversations.find((c) => c.id === activeConvo) : null;
-  const otherUser = activeConversation?.participants?.[0];
+    // Deduplicate by participant user_id, keeping the most recent conversation
+    const seen = new Map<string, ConversationWithDetails>();
+    filtered.forEach((c) => {
+      const participantId = c.participants[0]?.user_id;
+      if (!participantId) return;
+      const existing = seen.get(participantId);
+      if (!existing || new Date(c.updated_at) > new Date(existing.updated_at)) {
+        seen.set(participantId, c);
+      }
+    });
 
-  const currentCallSession = activeCallSessionId ? callSessions.find((session) => session.id === activeCallSessionId) ?? null : null;
-  const incomingPendingCall = callSessions.find((session) => session.status === "pending" && session.recipient_id === user?.id) ?? null;
+    return Array.from(seen.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  }, [conversations, archivedConvos, showArchived, searchConvos]);
+
+  const activeConversation = useMemo(() => (activeConvo ? (conversations as ConversationWithDetails[]).find((c) => c.id === activeConvo) : null), [activeConvo, conversations]);
+  const otherUser = activeConversation?.participants?.[0] ?? null;
+
+  const currentCallSession = useMemo(() => (activeCallSessionId ? callSessions.find((session) => session.id === activeCallSessionId) ?? null : null), [activeCallSessionId, callSessions]);
+  const incomingPendingCall = useMemo(() => callSessions.find((session) => session.status === "pending" && session.recipient_id === user?.id) ?? null, [callSessions, user?.id]);
 
   useEffect(() => {
     if (incomingPendingCall && incomingPendingCall.id !== activeCallSessionId) {
@@ -1143,7 +1211,7 @@ export default function MessagesPage() {
 
   // ======================== CHAT VIEW ========================
   if (activeConvo) {
-    const convo = conversations.find(c => c.id === activeConvo);
+    const convo = (conversations as ConversationWithDetails[]).find(c => c.id === activeConvo);
     const otherUser = convo?.participants?.[0];
     const isMuted = mutedConvos.has(activeConvo);
 
@@ -1174,9 +1242,7 @@ export default function MessagesPage() {
                   <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" />
                 </span>
               </p>
-            ) : (
-              <p className="text-[10px] text-white/60 font-medium">Last active status updates live</p>
-            )}
+            ) : null}
           </div>
           <div className="flex gap-1">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowChatSearch(!showChatSearch)}>
@@ -1245,7 +1311,7 @@ export default function MessagesPage() {
                     <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] text-white/65 backdrop-blur-xl">{date}</span>
                   </div>
                   <AnimatePresence>
-                    {msgs.map((msg, idx) => {
+                    {(msgs as typeof visibleMessages).map((msg, idx) => {
                       const isMe = msg.sender_id === user!.id;
                       const showAvatar = idx === 0 || msgs[idx - 1]?.sender_id !== msg.sender_id;
                       const msgReactions = reactions[msg.id] || [];
@@ -1784,8 +1850,8 @@ export default function MessagesPage() {
               </h3>
             </div>
             <div className="mb-4 rounded-2xl border border-white/10 bg-white/10 p-3 text-sm backdrop-blur-xl">
-              <p className="text-xs text-white/60">Burst reaction</p>
-              <p className="mt-1 text-base">{incomingPendingCall?.burst_emojis?.join(" ") || "✨"}</p>
+              <p className="text-xs text-white/60">Call type</p>
+              <p className="mt-1 text-base font-semibold capitalize">{incomingPendingCall?.mode === "video" ? "📹 Video call" : "🎧 Voice call"}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => incomingPendingCall && declineCallSession.mutate(incomingPendingCall.id)}>
@@ -1884,8 +1950,8 @@ export default function MessagesPage() {
                           <div className="rounded-2xl border border-white/15 bg-white/10 p-4 text-white backdrop-blur-2xl">
                             <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">Shared actions</p>
                             <div className="mt-3 flex items-center gap-2">
-                              {[["Mute", isMicMuted], ["Camera", isCameraOff], ["Invite", false]].map(([label, active]) => (
-                                <span key={label} className={`rounded-full px-3 py-1 text-xs ${active ? "bg-primary text-primary-foreground" : "bg-white/10 text-white/80"}`}>
+                              {[["Mute", isMicMuted], ["Camera", isCameraOff], ["Invite", false]].map(([label, active]: [string, boolean], idx) => (
+                                <span key={idx} className={`rounded-full px-3 py-1 text-xs ${active ? "bg-primary text-primary-foreground" : "bg-white/10 text-white/80"}`}>
                                   {label}
                                 </span>
                               ))}
@@ -1932,71 +1998,43 @@ export default function MessagesPage() {
                   </div>
 
                   <div className="border-t border-white/10 bg-white/5 p-4 lg:border-l lg:border-t-0 backdrop-blur-2xl">
-                    <div className="flex h-full flex-col gap-4">
+                    <div className="flex h-full flex-col gap-3">
                       <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur-xl">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">People</p>
+                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Participant</p>
                         <div className="mt-3 flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
+                          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
                             {otherUser?.profile?.avatar_url ? <img src={otherUser.profile.avatar_url} alt="" className="h-full w-full object-cover" /> : <User size={14} className="text-muted-foreground" />}
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold">{otherUser?.profile?.display_name || "Artist"}</p>
-                            <p className="text-xs text-white/60">{currentCallSession.mode === "video" ? "Camera on stage" : "Voice only"}</p>
+                            <p className="text-xs text-white/60">{currentCallSession.mode === "video" ? "Video call" : "Voice call"}</p>
                           </div>
                         </div>
                       </div>
 
                       <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur-xl">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Comments</p>
-                          <button type="button" className="text-xs text-white hover:underline" onClick={() => setShowChatSearch(true)}>
-                            Search chat
-                          </button>
-                        </div>
-                        <div className="mt-3 space-y-2 max-h-72 overflow-y-auto pr-1">
-                          {messages.slice(-6).map((msg) => (
-                            <div key={msg.id} className={`rounded-2xl border border-white/10 px-3 py-2 text-xs backdrop-blur-xl ${msg.sender_id === user?.id ? "ml-8 bg-white/10 text-white" : "mr-8 bg-white/15 text-white"}`}>
-                              <p className="line-clamp-3">{msg.content}</p>
-                            </div>
-                          ))}
-                          {!messages.length && (
-                            <p className="py-6 text-center text-sm text-white/60">No comments yet. Say something sweet.</p>
-                          )}
+                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Quality</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="flex h-2 flex-1 gap-0.5 overflow-hidden rounded-full bg-white/10">
+                            {[...Array(5)].map((_, i) => (
+                              <div key={i} className={`flex-1 rounded-full ${i < 4 ? "bg-green-500" : "bg-white/20"}`} />
+                            ))}
+                          </div>
+                          <span className="text-xs text-white/60">Strong</span>
                         </div>
                       </div>
 
-                      <div className="mt-auto rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur-xl">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Quick actions</p>
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <Button variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 text-white hover:bg-white/20" onClick={() => {
-                            const audioTrack = localMediaStreamRef.current?.getAudioTracks()[0];
-                            if (audioTrack) audioTrack.enabled = !audioTrack.enabled;
-                            setIsMicMuted((value) => !value);
-                          }}>
-                            <Volume2 size={14} className="mr-1" /> {isMicMuted ? "Unmute" : "Mute"}
-                          </Button>
-                          <Button variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 text-white hover:bg-white/20" onClick={() => toast.message("Use Add user to invite another artist")}>
-                            <Users size={14} className="mr-1" /> Add user
-                          </Button>
-                          {currentCallSession.mode === "video" ? (
-                            <Button variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 text-white hover:bg-white/20" onClick={() => {
-                              const videoTrack = localMediaStreamRef.current?.getVideoTracks()[0];
-                              if (videoTrack) videoTrack.enabled = !videoTrack.enabled;
-                              setIsCameraOff((value) => !value);
-                            }}>
-                              {isCameraOff ? <VideoOff size={14} className="mr-1" /> : <Video size={14} className="mr-1" />}
-                              {isCameraOff ? "Camera on" : "Camera off"}
-                            </Button>
-                          ) : (
-                            <Button variant="outline" className="h-10 rounded-xl border-white/15 bg-white/10 text-white hover:bg-white/20" onClick={() => toast.message("Audio room is live and cozy")}>
-                              <Sparkles size={14} className="mr-1" /> Wave effect
-                            </Button>
-                          )}
-                          <Button variant="destructive" className="h-10 rounded-xl" onClick={() => endCallSession.mutate(currentCallSession.id)}>
-                            <Trash2 size={14} className="mr-1" /> Leave
-                          </Button>
+                      <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur-xl">
+                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Your status</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-xs font-medium">{isMicMuted ? "Muted" : "Connected"}</span>
                         </div>
                       </div>
+
+                      <button type="button" onClick={() => setShowChatSearch(true)} className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs text-white/70 hover:bg-white/10 transition-colors text-left">
+                        View chat messages →
+                      </button>
                     </div>
                   </div>
                 </div>

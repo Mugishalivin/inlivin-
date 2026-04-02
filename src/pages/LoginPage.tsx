@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -7,30 +6,66 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Eye, EyeOff, Mail } from "lucide-react";
+import { Eye, EyeOff, Mail, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+
+    const runSessionCheck = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!alive) return;
+
+        if (session?.user) {
+          const { data } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          navigate(data?.role === "admin" ? "/admin" : "/dashboard", { replace: true });
+          return;
+        }
+      } finally {
+        if (alive) setCheckingSession(false);
+      }
+    };
+
+
+    void runSessionCheck();
+    return () => {
+      alive = false;
+    };
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
-    setLoading(true);
+    setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
+    setSubmitting(false);
     if (error) {
       toast.error(error.message);
     } else {
       toast.success("Welcome back!");
-      // Role-based redirect
-      setTimeout(() => {
-        const { role } = useAuth();
-        navigate(role === 'admin' ? '/admin' : '/dashboard');
-      }, 100);
+      const { data: { user } } = await supabase.auth.getUser();
+      let target = "/dashboard";
+      if (user) {
+        const { data } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (data?.role === "admin") target = "/admin";
+      }
+      navigate(target, { replace: true });
     }
   };
 
@@ -59,6 +94,13 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-8">
+          {checkingSession && (
+            <div className="mb-5 flex items-center gap-3 rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+              <span>Checking your session. The form is ready if you need to sign in.</span>
+            </div>
+          )}
+
           {/* Social buttons */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             <Button variant="outline" onClick={handleGoogleLogin} className="h-11">
@@ -114,8 +156,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <Button variant="hero" className="w-full h-11" type="submit" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+            <Button variant="hero" className="w-full h-11" type="submit" disabled={submitting}>
+              {submitting ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 

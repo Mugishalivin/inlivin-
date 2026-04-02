@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -83,6 +83,24 @@ export default function SettingsPage() {
   const [autoplayMedia, setAutoplayMedia] = useState(true);
   const [loadingAvatar, setLoadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const lastSavedSnapshotRef = useRef("");
+  const hasSeededSnapshotRef = useRef(false);
+  const autoSaveEnabled = true;
+  const resolvedProfile = profile ?? {
+    user_id: user?.id ?? "",
+    display_name: null,
+    username: null,
+    avatar_url: null,
+    bio: null,
+    skills: [] as string[],
+    genres: [] as string[],
+    location: null,
+    website: null,
+    last_seen_at: null,
+  };
 
   const { data: userSettings } = useQuery({
     queryKey: ["user-settings", user?.id],
@@ -98,6 +116,7 @@ export default function SettingsPage() {
     },
     enabled: !!user,
   });
+  const settingsLoaded = !!user && userSettings !== undefined;
 
   const { data: overview = { projects: 0, followers: 0, following: 0, unread: 0 } } = useQuery({
     queryKey: ["settings-overview", user?.id],
@@ -132,6 +151,7 @@ export default function SettingsPage() {
   }, [profile]);
 
   useEffect(() => {
+    if (!settingsLoaded) return;
     const merged = userSettings ?? defaultSettings(user?.id ?? "");
     setThemeMode((merged.theme_mode as ThemeMode) || "system");
     setProfileVisibility((merged.profile_visibility as VisibilityMode) || "public");
@@ -141,7 +161,8 @@ export default function SettingsPage() {
     setShowLocation(merged.show_location);
     setCompactMode(merged.compact_mode);
     setAutoplayMedia(merged.autoplay_media);
-  }, [user?.id, userSettings]);
+    setHasHydratedSettings(true);
+  }, [settingsLoaded, user?.id, userSettings]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -171,9 +192,33 @@ export default function SettingsPage() {
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   }, [bio, displayName, genres, location, profile?.avatar_url, skills, username, website]);
 
+  const settingsPayload = useMemo(() => ({
+    user_id: user?.id ?? "",
+    theme_mode: themeMode,
+    profile_visibility: profileVisibility,
+    email_notifications: emailNotifications,
+    marketing_emails: marketingEmails,
+    allow_messages: allowMessages,
+    show_location: showLocation,
+    compact_mode: compactMode,
+    autoplay_media: autoplayMedia,
+  }), [
+    autoplayMedia,
+    allowMessages,
+    compactMode,
+    emailNotifications,
+    marketingEmails,
+    profileVisibility,
+    showLocation,
+    themeMode,
+    user?.id,
+  ]);
+
+  const settingsSnapshot = useMemo(() => JSON.stringify(settingsPayload), [settingsPayload]);
+
   const syncMutation = useMutation({
-    mutationFn: async () => {
-      if (!profile || !user) throw new Error("Profile is not loaded yet.");
+    mutationFn: async (source: "manual" | "auto" = "manual") => {
+      if (!user) throw new Error("User is not loaded yet.");
 
       const { error: profileError } = await supabase
         .from("profiles")
@@ -186,45 +231,85 @@ export default function SettingsPage() {
           skills: skills.split(",").map((s) => s.trim()).filter(Boolean),
           genres: genres.split(",").map((s) => s.trim()).filter(Boolean),
         })
-        .eq("user_id", profile.user_id);
+        .eq("user_id", user.id);
 
       if (profileError) throw profileError;
 
       const { error: settingsError } = await supabase.from("user_settings").upsert(
-        {
-          user_id: user.id,
-          theme_mode: themeMode,
-          profile_visibility: profileVisibility,
-          email_notifications: emailNotifications,
-          marketing_emails: marketingEmails,
-          allow_messages: allowMessages,
-          show_location: showLocation,
-          compact_mode: compactMode,
-          autoplay_media: autoplayMedia,
-        },
+        settingsPayload,
         { onConflict: "user_id" },
       );
 
       if (settingsError) throw settingsError;
+      return source;
     },
     onMutate: () => setSaving(true),
-    onSuccess: async () => {
+    onSuccess: async (_result, source) => {
+      lastSavedSnapshotRef.current = settingsSnapshot;
+      setSaveStatus("saved");
       await refreshProfile();
       await queryClient.invalidateQueries({ queryKey: ["user-settings", user?.id] });
       await queryClient.invalidateQueries({ queryKey: ["settings-overview", user?.id] });
-      toast.success("Settings synced to the database");
+      if (source === "manual") {
+        toast.success("Settings synced to the database");
+      }
+      window.setTimeout(() => {
+        setSaveStatus((current) => (current === "saved" ? "idle" : current));
+      }, 1200);
     },
-    onError: (error: any) => toast.error(error.message || "Failed to save settings"),
+    onError: (error: any, source) => {
+      setSaveStatus("error");
+      if (source === "manual") {
+        toast.error(error.message || "Failed to save settings");
+      } else {
+        toast.error(error.message || "Auto-save failed");
+      }
+    },
     onSettled: () => setSaving(false),
   });
 
+  useEffect(() => {
+    if (!autoSaveEnabled || !hasHydratedSettings || !user) return;
+    if (saving) return;
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    if (settingsSnapshot === lastSavedSnapshotRef.current) return;
+
+    setSaveStatus("saving");
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      syncMutation.mutate("auto");
+    }, 900);
+
+    return () => {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [autoSaveEnabled, hasHydratedSettings, saving, settingsSnapshot, syncMutation, user]);
+
+  useEffect(() => {
+    if (!hasHydratedSettings || hasSeededSnapshotRef.current) return;
+    lastSavedSnapshotRef.current = settingsSnapshot;
+    hasSeededSnapshotRef.current = true;
+  }, [hasHydratedSettings, settingsSnapshot]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleAvatarUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !profile || !user) return;
+    if (!file || !user) return;
 
     setLoadingAvatar(true);
     const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-    const path = `${profile.user_id}/avatar.${ext}`;
+    const path = `${resolvedProfile.user_id || user.id}/avatar.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from("avatars")
@@ -256,7 +341,7 @@ export default function SettingsPage() {
 
   const handleSave = (e: FormEvent) => {
     e.preventDefault();
-    syncMutation.mutate();
+    syncMutation.mutate("manual");
   };
 
   const copyProfileUrl = async () => {
@@ -279,11 +364,11 @@ export default function SettingsPage() {
     setCompactMode(false);
     setAutoplayMedia(true);
     toast("Preferences reset", {
-      description: "Remember to save so the database matches your reset state.",
+      description: "Auto-save will persist the reset state shortly.",
     });
   };
 
-  if (!user || !profile) {
+  if (!user) {
     return (
       <div className="p-6 md:p-8 max-w-6xl mx-auto">
         <div className="animate-pulse space-y-4">
@@ -408,8 +493,8 @@ export default function SettingsPage() {
                 <CardContent className="space-y-5">
                   <div className="flex items-center gap-4">
                     <div className="h-24 w-24 rounded-full bg-secondary flex items-center justify-center overflow-hidden shrink-0 ring-4 ring-background">
-                      {profile.avatar_url ? (
-                        <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      {resolvedProfile.avatar_url ? (
+                        <img src={resolvedProfile.avatar_url} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <User size={34} className="text-muted-foreground" />
                       )}
@@ -481,8 +566,8 @@ export default function SettingsPage() {
                   <div className="rounded-[1.5rem] border border-border/60 bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
                     <div className="flex items-center gap-3">
                       <div className="h-14 w-14 rounded-full overflow-hidden bg-secondary flex items-center justify-center shrink-0">
-                        {profile.avatar_url ? (
-                          <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                        {resolvedProfile.avatar_url ? (
+                          <img src={resolvedProfile.avatar_url} alt="" className="h-full w-full object-cover" />
                         ) : (
                           <User size={24} className="text-muted-foreground" />
                         )}
@@ -686,7 +771,7 @@ export default function SettingsPage() {
                   <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Signed in as</p>
                     <p className="font-semibold break-all">{user.email}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{profile.display_name || "Artist"} | {profile.username ? `@${profile.username}` : "no username"}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{resolvedProfile.display_name || "Artist"} | {resolvedProfile.username ? `@${resolvedProfile.username}` : "no username"}</p>
                   </div>
 
                   <Button variant="hero-outline" className="w-full justify-start" onClick={() => signOut()}>
@@ -710,12 +795,26 @@ export default function SettingsPage() {
             <CardContent className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="font-medium">Ready to sync your changes?</p>
-                <p className="text-xs text-muted-foreground">This saves your profile to the database and persists your preferences across sessions.</p>
+                <p className="text-xs text-muted-foreground">Changes auto-save to the database after a short pause. You can still force a save here.</p>
               </div>
-              <Button variant="hero" type="submit" disabled={saving || loadingAvatar}>
-                {saving ? <LoadingSpinner size="sm" /> : <Save size={14} />}
-                {saving ? "Saving..." : "Save changes"}
-              </Button>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    {saveStatus === "saving" || saving ? "Auto-saving" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Save error" : "Auto-save on"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {saveStatus === "saved"
+                      ? "Your latest changes are in sync."
+                      : saveStatus === "error"
+                        ? "Try the save button if the network is flaky."
+                        : "Edits persist automatically after you pause typing."}
+                  </p>
+                </div>
+                <Button variant="hero" type="submit" disabled={saving || loadingAvatar}>
+                  {saving ? <LoadingSpinner size="sm" /> : <Save size={14} />}
+                  {saving ? "Saving..." : "Save now"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
