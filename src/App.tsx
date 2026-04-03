@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CallProvider } from "@/contexts/CallContext";
+import { MinimizedCallPopup } from "@/components/MinimizedCallPopup";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
@@ -29,8 +31,27 @@ import AdminPage from "./pages/AdminPage";
 import ContentPipelinePage from "./pages/ContentPipelinePage";
 import ContentDetailPage from "./pages/ContentDetailPage";
 import NotFound from "./pages/NotFound";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const queryClient = new QueryClient();
+
+// Global end call function
+const endCallSession = async (sessionId: string) => {
+  try {
+    const { error } = await supabase
+      .from("call_sessions")
+      .update({ status: "ended", ended_at: new Date().toISOString() })
+      .eq("id", sessionId);
+    if (error) throw error;
+    toast.success("Call ended");
+    queryClient.invalidateQueries({ queryKey: ["call-sessions"] });
+  } catch (error) {
+    console.error("Error ending call:", error);
+    toast.error("Failed to end call");
+  }
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -39,40 +60,43 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/feed" element={<FeedPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
-              <Route path="/messages" element={<MessagesPage />} />
-              <Route path="/explore" element={<ExplorePage />} />
-              <Route path="/events" element={<EventsPage />} />
-              <Route path="/create-event" element={<CreateEventPage />} />
-              <Route path="/events/:eventId" element={<EventDetailPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/bookmarks" element={<BookmarksPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/profile/:userId" element={<UserProfilePage />} />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/studio" element={<ContentPipelinePage />} />
-              <Route path="/content-pipeline" element={<Navigate to="/studio" replace />} />
-              <Route path="/content/:contentType/:contentId" element={<ContentDetailPage />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <CallProvider endCallSession={endCallSession}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/feed" element={<FeedPage />} />
+                <Route path="/projects" element={<ProjectsPage />} />
+                <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+                <Route path="/messages" element={<MessagesPage />} />
+                <Route path="/explore" element={<ExplorePage />} />
+                <Route path="/events" element={<EventsPage />} />
+                <Route path="/create-event" element={<CreateEventPage />} />
+                <Route path="/events/:eventId" element={<EventDetailPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/bookmarks" element={<BookmarksPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/profile/:userId" element={<UserProfilePage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/studio" element={<ContentPipelinePage />} />
+                <Route path="/content-pipeline" element={<Navigate to="/studio" replace />} />
+                <Route path="/content/:contentType/:contentId" element={<ContentDetailPage />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <MinimizedCallPopup />
+          </CallProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
