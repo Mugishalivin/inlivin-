@@ -4,13 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { fetchAdminProfiles } from "@/lib/admin-profiles";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BarChart3 } from "lucide-react";
 
 export default function AdminAnalyticsPage() {
   const { data: profiles = [] } = useQuery({
     queryKey: ["admin", "analytics-profiles"],
-    queryFn: async () => (await supabase.from("profiles").select("user_id, display_name, username, last_seen_at, created_at").order("created_at", { ascending: false }).limit(50)).data ?? [],
+    queryFn: async () => (await fetchAdminProfiles()).slice(0, 50),
   });
   const { data: sessions = [] } = useQuery({
     queryKey: ["admin", "analytics-sessions"],

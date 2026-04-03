@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { fetchAdminProfiles } from "@/lib/admin-profiles";
 import { Shield, LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,7 +26,7 @@ export default function AdminSecurityPage() {
   });
   const { data: users = [] } = useQuery({
     queryKey: ["admin", "security-users"],
-    queryFn: async () => (await supabase.from("profiles").select("user_id, display_name, username, status, user_roles(role)").order("created_at", { ascending: false })).data ?? [],
+    queryFn: fetchAdminProfiles,
   });
 
   const roleSummary = useMemo(() => {

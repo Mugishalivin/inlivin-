@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/LoadingSkeletons";
-import { applyThemePreference } from "@/lib/theme";
+import { applyAppearancePreference, applyThemePreference } from "@/lib/theme";
 import {
   Bell,
   Copy,
@@ -40,6 +40,48 @@ import {
 type UserSettings = Database["public"]["Tables"]["user_settings"]["Row"];
 type ThemeMode = "light" | "dark" | "system";
 type VisibilityMode = "public" | "followers" | "private";
+type ExtraSettings = {
+  themeAccent: string;
+  feedDensity: string;
+  pushNotifications: boolean;
+  smsNotifications: boolean;
+  emailSummary: string;
+  messageSound: boolean;
+  allowGroupInvites: boolean;
+  autoplayGifs: boolean;
+  highQualityMedia: boolean;
+  wifiOnlyMedia: boolean;
+  discoverableProfile: boolean;
+  showInSearch: boolean;
+  recommendToOthers: boolean;
+  reducedMotion: boolean;
+  largeText: boolean;
+  captionsEnabled: boolean;
+  highContrastMode: boolean;
+  twoFactorEnabled: boolean;
+  sessionTimeoutMinutes: number;
+  requirePasswordForActions: boolean;
+  dataSharing: boolean;
+  analyticsSharing: boolean;
+  backupExports: boolean;
+  instagramSync: boolean;
+  spotifySync: boolean;
+  calendarSync: boolean;
+  driveSync: boolean;
+  slackSync: boolean;
+  showActivityStatus: boolean;
+  typingIndicator: boolean;
+  profileHighlights: boolean;
+  betaFeatures: boolean;
+  developerMode: boolean;
+  contentLanguage: string;
+  loginAlerts: boolean;
+  allowFollowRequests: boolean;
+  allowTagging: boolean;
+  sidebarMode: string;
+  autoArchiveDays: number;
+  autoSaveDrafts: boolean;
+};
 
 const defaultSettings = (userId = ""): UserSettings => ({
   id: "",
@@ -54,14 +96,77 @@ const defaultSettings = (userId = ""): UserSettings => ({
   autoplay_media: true,
   created_at: "",
   updated_at: "",
+}) as UserSettings;
+
+const defaultExtraSettings = (): ExtraSettings => ({
+  themeAccent: "sunset",
+  feedDensity: "comfortable",
+  pushNotifications: true,
+  smsNotifications: false,
+  emailSummary: "weekly",
+  messageSound: true,
+  allowGroupInvites: true,
+  autoplayGifs: true,
+  highQualityMedia: true,
+  wifiOnlyMedia: false,
+  discoverableProfile: true,
+  showInSearch: true,
+  recommendToOthers: true,
+  reducedMotion: false,
+  largeText: false,
+  captionsEnabled: true,
+  highContrastMode: false,
+  twoFactorEnabled: false,
+  sessionTimeoutMinutes: 60,
+  requirePasswordForActions: true,
+  dataSharing: true,
+  analyticsSharing: true,
+  backupExports: true,
+  instagramSync: false,
+  spotifySync: false,
+  calendarSync: false,
+  driveSync: false,
+  slackSync: false,
+  showActivityStatus: true,
+  typingIndicator: true,
+  profileHighlights: true,
+  betaFeatures: false,
+  developerMode: false,
+  contentLanguage: "English",
+  loginAlerts: true,
+  allowFollowRequests: true,
+  allowTagging: true,
+  sidebarMode: "auto",
+  autoArchiveDays: 30,
+  autoSaveDrafts: true,
 });
 
 const profileLink = (userId: string) => `${window.location.origin}/profile/${userId}`;
+
+const settingsSections = [
+  { value: "identity", title: "Identity", description: "Name, bio, avatar, and profile basics." },
+  { value: "appearance", title: "Appearance", description: "Theme, density, and visual style." },
+  { value: "privacy", title: "Privacy", description: "Who sees you and how you appear." },
+  { value: "notifications", title: "Notifications", description: "Alerts, summaries, and inbox signals." },
+  { value: "messages", title: "Messages", description: "Chat access and message behavior." },
+  { value: "media", title: "Media", description: "Autoplay, quality, captions, and data use." },
+  { value: "discovery", title: "Discovery", description: "Search visibility and recommendations." },
+  { value: "accessibility", title: "Accessibility", description: "Text, contrast, motion, and readability." },
+  { value: "security", title: "Security", description: "2FA, session timing, and safe actions." },
+  { value: "preferences", title: "Preferences", description: "Core app preferences and theme mode." },
+  { value: "data", title: "Data", description: "Sync status, profile URL, and account data." },
+  { value: "integrations", title: "Integrations", description: "External services and connected tools." },
+  { value: "activity", title: "Activity", description: "Presence, typing, and backup behavior." },
+  { value: "feed", title: "Feed", description: "How your feed is displayed and behaves." },
+  { value: "profile", title: "Profile", description: "Visibility and profile surface settings." },
+  { value: "advanced", title: "Advanced", description: "Beta, developer, and archive controls." },
+] as const;
 
 export default function SettingsPage() {
   const { user, profile, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [activeSection, setActiveSection] = useState<(typeof settingsSections)[number]["value"]>("identity");
 
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
@@ -82,10 +187,12 @@ export default function SettingsPage() {
   const [showLocation, setShowLocation] = useState(true);
   const [compactMode, setCompactMode] = useState(false);
   const [autoplayMedia, setAutoplayMedia] = useState(true);
+  const [extraSettings, setExtraSettings] = useState<ExtraSettings>(defaultExtraSettings);
   const [loadingAvatar, setLoadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
+  const [persistAfterReset, setPersistAfterReset] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const lastSavedSnapshotRef = useRef("");
   const hasSeededSnapshotRef = useRef(false);
@@ -162,6 +269,48 @@ export default function SettingsPage() {
     setShowLocation(merged.show_location);
     setCompactMode(merged.compact_mode);
     setAutoplayMedia(merged.autoplay_media);
+    setExtraSettings({
+      themeAccent: (merged as any).theme_accent || "sunset",
+      feedDensity: (merged as any).feed_density || "comfortable",
+      pushNotifications: (merged as any).push_notifications ?? true,
+      smsNotifications: (merged as any).sms_notifications ?? false,
+      emailSummary: (merged as any).email_summary || "weekly",
+      messageSound: (merged as any).message_sound ?? true,
+      allowGroupInvites: (merged as any).allow_group_invites ?? true,
+      autoplayGifs: (merged as any).autoplay_gifs ?? true,
+      highQualityMedia: (merged as any).high_quality_media ?? true,
+      wifiOnlyMedia: (merged as any).wifi_only_media ?? false,
+      discoverableProfile: (merged as any).discoverable_profile ?? true,
+      showInSearch: (merged as any).show_in_search ?? true,
+      recommendToOthers: (merged as any).recommend_to_others ?? true,
+      reducedMotion: (merged as any).reduced_motion ?? false,
+      largeText: (merged as any).large_text ?? false,
+      captionsEnabled: (merged as any).captions_enabled ?? true,
+      highContrastMode: (merged as any).high_contrast_mode ?? false,
+      twoFactorEnabled: (merged as any).two_factor_enabled ?? false,
+      sessionTimeoutMinutes: (merged as any).session_timeout_minutes ?? 60,
+      requirePasswordForActions: (merged as any).require_password_for_actions ?? true,
+      dataSharing: (merged as any).data_sharing ?? true,
+      analyticsSharing: (merged as any).analytics_sharing ?? true,
+      backupExports: (merged as any).backup_exports ?? true,
+      instagramSync: (merged as any).instagram_sync ?? false,
+      spotifySync: (merged as any).spotify_sync ?? false,
+      calendarSync: (merged as any).calendar_sync ?? false,
+      driveSync: (merged as any).drive_sync ?? false,
+      slackSync: (merged as any).slack_sync ?? false,
+      showActivityStatus: (merged as any).show_activity_status ?? true,
+      typingIndicator: (merged as any).typing_indicator ?? true,
+      profileHighlights: (merged as any).profile_highlights ?? true,
+      betaFeatures: (merged as any).beta_features ?? false,
+      developerMode: (merged as any).developer_mode ?? false,
+      contentLanguage: (merged as any).content_language || "English",
+      loginAlerts: (merged as any).login_alerts ?? true,
+      allowFollowRequests: (merged as any).allow_follow_requests ?? true,
+      allowTagging: (merged as any).allow_tagging ?? true,
+      sidebarMode: (merged as any).sidebar_mode || "auto",
+      autoArchiveDays: (merged as any).auto_archive_days ?? 30,
+      autoSaveDrafts: (merged as any).auto_save_drafts ?? true,
+    });
     setHasHydratedSettings(true);
   }, [settingsLoaded, user?.id, userSettings]);
 
@@ -169,6 +318,27 @@ export default function SettingsPage() {
     if (typeof window === "undefined") return;
     applyThemePreference(themeMode);
   }, [themeMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    applyAppearancePreference({
+      themeAccent: extraSettings.themeAccent as any,
+      feedDensity: (compactMode ? "compact" : extraSettings.feedDensity) as any,
+      reducedMotion: extraSettings.reducedMotion,
+      largeText: extraSettings.largeText,
+      highContrastMode: extraSettings.highContrastMode,
+      compactMode,
+      sidebarMode: extraSettings.sidebarMode,
+    });
+  }, [
+    compactMode,
+    extraSettings.feedDensity,
+    extraSettings.highContrastMode,
+    extraSettings.largeText,
+    extraSettings.reducedMotion,
+    extraSettings.sidebarMode,
+    extraSettings.themeAccent,
+  ]);
 
   const profileCompletion = useMemo(() => {
     const checks = [
@@ -194,6 +364,46 @@ export default function SettingsPage() {
     show_location: showLocation,
     compact_mode: compactMode,
     autoplay_media: autoplayMedia,
+    theme_accent: extraSettings.themeAccent,
+    feed_density: extraSettings.feedDensity,
+    push_notifications: extraSettings.pushNotifications,
+    sms_notifications: extraSettings.smsNotifications,
+    email_summary: extraSettings.emailSummary,
+    message_sound: extraSettings.messageSound,
+    allow_group_invites: extraSettings.allowGroupInvites,
+    autoplay_gifs: extraSettings.autoplayGifs,
+    high_quality_media: extraSettings.highQualityMedia,
+    wifi_only_media: extraSettings.wifiOnlyMedia,
+    discoverable_profile: extraSettings.discoverableProfile,
+    show_in_search: extraSettings.showInSearch,
+    recommend_to_others: extraSettings.recommendToOthers,
+    reduced_motion: extraSettings.reducedMotion,
+    large_text: extraSettings.largeText,
+    captions_enabled: extraSettings.captionsEnabled,
+    high_contrast_mode: extraSettings.highContrastMode,
+    two_factor_enabled: extraSettings.twoFactorEnabled,
+    session_timeout_minutes: extraSettings.sessionTimeoutMinutes,
+    require_password_for_actions: extraSettings.requirePasswordForActions,
+    data_sharing: extraSettings.dataSharing,
+    analytics_sharing: extraSettings.analyticsSharing,
+    backup_exports: extraSettings.backupExports,
+    instagram_sync: extraSettings.instagramSync,
+    spotify_sync: extraSettings.spotifySync,
+    calendar_sync: extraSettings.calendarSync,
+    drive_sync: extraSettings.driveSync,
+    slack_sync: extraSettings.slackSync,
+    show_activity_status: extraSettings.showActivityStatus,
+    typing_indicator: extraSettings.typingIndicator,
+    profile_highlights: extraSettings.profileHighlights,
+    beta_features: extraSettings.betaFeatures,
+    developer_mode: extraSettings.developerMode,
+    content_language: extraSettings.contentLanguage,
+    login_alerts: extraSettings.loginAlerts,
+    allow_follow_requests: extraSettings.allowFollowRequests,
+    allow_tagging: extraSettings.allowTagging,
+    sidebar_mode: extraSettings.sidebarMode,
+    auto_archive_days: extraSettings.autoArchiveDays,
+    auto_save_drafts: extraSettings.autoSaveDrafts,
   }), [
     autoplayMedia,
     allowMessages,
@@ -204,9 +414,13 @@ export default function SettingsPage() {
     showLocation,
     themeMode,
     user?.id,
+    extraSettings,
   ]);
 
   const settingsSnapshot = useMemo(() => JSON.stringify(settingsPayload), [settingsPayload]);
+  const updateExtra = <K extends keyof ExtraSettings>(key: K, value: ExtraSettings[K]) => {
+    setExtraSettings((current) => ({ ...current, [key]: value }));
+  };
 
   const syncMutation = useMutation({
     mutationFn: async (source: "manual" | "auto" = "manual") => {
@@ -282,6 +496,12 @@ export default function SettingsPage() {
   }, [autoSaveEnabled, hasHydratedSettings, saving, settingsSnapshot, syncMutation, user]);
 
   useEffect(() => {
+    if (!persistAfterReset || !hasHydratedSettings || !user) return;
+    setPersistAfterReset(false);
+    syncMutation.mutate("manual");
+  }, [hasHydratedSettings, persistAfterReset, syncMutation, user]);
+
+  useEffect(() => {
     if (!hasHydratedSettings || hasSeededSnapshotRef.current) return;
     lastSavedSnapshotRef.current = settingsSnapshot;
     hasSeededSnapshotRef.current = true;
@@ -355,6 +575,8 @@ export default function SettingsPage() {
     setShowLocation(true);
     setCompactMode(false);
     setAutoplayMedia(true);
+    setExtraSettings(defaultExtraSettings());
+    setPersistAfterReset(true);
     toast("Preferences reset", {
       description: "Auto-save will persist the reset state shortly.",
     });
@@ -469,16 +691,34 @@ export default function SettingsPage() {
       </motion.section>
 
       <form onSubmit={handleSave}>
-        <Tabs defaultValue="identity" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="identity">Identity</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
-            <TabsTrigger value="data">Data & Security</TabsTrigger>
-          </TabsList>
+        <Tabs value={activeSection} onValueChange={(value) => setActiveSection(value as (typeof settingsSections)[number]["value"])} className="space-y-6">
+          <div className="space-y-6">
+            <Card className="border-border/60 bg-card/90 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="font-display text-base">Settings navigator</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Pick a section to tune. Every control is saved to the database.
+                </p>
+              </CardHeader>
+              <CardContent className="p-2">
+                <TabsList className="flex h-auto w-full flex-wrap gap-2 bg-transparent p-0">
+                  {settingsSections.map((section) => (
+                    <TabsTrigger
+                      key={section.value}
+                      value={section.value}
+                      className="rounded-full border border-border/60 bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors data-[state=active]:border-primary/40 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                    >
+                      {section.title}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </CardContent>
+            </Card>
 
-          <TabsContent value="identity" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-              <Card className="border-border/60">
+            <div className="space-y-6">
+              <TabsContent value="identity" className="space-y-6">
+                <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+                  <Card className="border-border/60">
                 <CardHeader className="pb-3">
                   <CardTitle className="font-display text-base">Profile Identity</CardTitle>
                 </CardHeader>
@@ -594,11 +834,11 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
+                </div>
+              </TabsContent>
 
-          <TabsContent value="preferences" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-2">
+              <TabsContent value="preferences" className="space-y-6">
+                <div className="grid gap-6 lg:grid-cols-2">
               <Card className="border-border/60">
                 <CardHeader className="pb-3">
                   <CardTitle className="font-display text-base">Visual Mode</CardTitle>
@@ -710,11 +950,11 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
+                </div>
+              </TabsContent>
 
-          <TabsContent value="data" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+              <TabsContent value="data" className="space-y-6">
+                <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
               <Card className="border-border/60">
                 <CardHeader className="pb-3">
                   <CardTitle className="font-display text-base">Account Data</CardTitle>
@@ -778,8 +1018,324 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
               </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="appearance" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="border-border/60">
+                <CardHeader className="pb-3"><CardTitle className="font-display text-base">Appearance</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-3xl border border-border/60 bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Live preview</p>
+                        <h3 className="mt-1 font-display text-lg text-foreground">Your theme updates instantly</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">Accent, density, and contrast are applied across the app and saved to the database.</p>
+                      </div>
+                      <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">Live</Badge>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-border/60 bg-card/80 p-3 shadow-sm">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Accent</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="h-9 w-9 rounded-xl bg-primary shadow-sm" />
+                          <div>
+                            <p className="font-medium text-foreground capitalize">{extraSettings.themeAccent}</p>
+                            <p className="text-xs text-muted-foreground">Primary buttons and highlights</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-border/60 bg-card/80 p-3 shadow-sm">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Density</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="flex h-9 items-center gap-1 rounded-xl border border-border bg-background px-3">
+                            <span className="h-2 w-2 rounded-full bg-primary" />
+                            <span className="h-2 w-2 rounded-full bg-accent" />
+                            <span className="h-2 w-2 rounded-full bg-secondary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground capitalize">{compactMode ? "Compact" : extraSettings.feedDensity}</p>
+                            <p className="text-xs text-muted-foreground">Spacing and corner radius</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Theme accent</Label>
+                    <Select value={extraSettings.themeAccent} onValueChange={(value) => updateExtra("themeAccent", value)}>
+                      <SelectTrigger className="mt-1.5 h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sunset">Sunset</SelectItem>
+                        <SelectItem value="ocean">Ocean</SelectItem>
+                        <SelectItem value="forest">Forest</SelectItem>
+                        <SelectItem value="midnight">Midnight</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Feed density</Label>
+                    <Select value={extraSettings.feedDensity} onValueChange={(value) => updateExtra("feedDensity", value)}>
+                      <SelectTrigger className="mt-1.5 h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="comfortable">Comfortable</SelectItem>
+                        <SelectItem value="compact">Compact</SelectItem>
+                        <SelectItem value="dense">Dense</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="rounded-2xl border border-border/60 p-4 space-y-4">
+                    <SettingToggle label="Compact mode" description="Tighter spacing in feeds and cards." checked={compactMode} onChange={setCompactMode} />
+                    <SettingToggle label="Large text" description="Bump up text size across the app." checked={extraSettings.largeText} onChange={(value) => updateExtra("largeText", value)} />
+                    <SettingToggle label="High contrast" description="Stronger contrast for readability." checked={extraSettings.highContrastMode} onChange={(value) => updateExtra("highContrastMode", value)} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/60">
+                <CardHeader className="pb-3"><CardTitle className="font-display text-base">Visibility</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <SettingToggle label="Profile highlights" description="Feature your best posts on your profile." checked={extraSettings.profileHighlights} onChange={(value) => updateExtra("profileHighlights", value)} />
+                  <SettingToggle label="Show in search" description="Let other users find your profile in search." checked={extraSettings.showInSearch} onChange={(value) => updateExtra("showInSearch", value)} />
+                  <SettingToggle label="Discoverable profile" description="Allow recommendations in the platform." checked={extraSettings.discoverableProfile} onChange={(value) => updateExtra("discoverableProfile", value)} />
+                  <SettingToggle label="Recommend to others" description="Suggest your profile in discovery feeds." checked={extraSettings.recommendToOthers} onChange={(value) => updateExtra("recommendToOthers", value)} />
+                </CardContent>
+              </Card>
             </div>
-          </TabsContent>
+              </TabsContent>
+
+              <TabsContent value="privacy" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="border-border/60">
+                <CardHeader className="pb-3"><CardTitle className="font-display text-base">Privacy</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <SettingToggle label="Show activity status" description="Let others know when you're online." checked={extraSettings.showActivityStatus} onChange={(value) => updateExtra("showActivityStatus", value)} />
+                  <SettingToggle label="Typing indicator" description="Show when you are typing a message." checked={extraSettings.typingIndicator} onChange={(value) => updateExtra("typingIndicator", value)} />
+                  <SettingToggle label="Allow follow requests" description="Approve who can follow you." checked={extraSettings.allowFollowRequests} onChange={(value) => updateExtra("allowFollowRequests", value)} />
+                  <SettingToggle label="Allow tagging" description="Allow others to tag your profile and content." checked={extraSettings.allowTagging} onChange={(value) => updateExtra("allowTagging", value)} />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/60">
+                <CardHeader className="pb-3"><CardTitle className="font-display text-base">Location & Profile</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <SettingToggle label="Show location" description="Display your city or region on your profile." checked={showLocation} onChange={setShowLocation} />
+                  <div>
+                    <Label className="text-xs font-medium">Profile visibility</Label>
+                    <Select value={profileVisibility} onValueChange={(value) => setProfileVisibility(value as VisibilityMode)}>
+                      <SelectTrigger className="mt-1.5 h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="public">Public</SelectItem>
+                        <SelectItem value="followers">Followers only</SelectItem>
+                        <SelectItem value="private">Private</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+              </TabsContent>
+
+              <TabsContent value="notifications" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Notifications</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Push notifications" description="Browser and mobile push alerts." checked={extraSettings.pushNotifications} onChange={(value) => updateExtra("pushNotifications", value)} />
+                <SettingToggle label="Email notifications" description="Messages, follows, and account activity." checked={emailNotifications} onChange={setEmailNotifications} />
+                <SettingToggle label="Login alerts" description="Get notified about sign-ins from new devices." checked={extraSettings.loginAlerts} onChange={(value) => updateExtra("loginAlerts", value)} />
+                <SettingToggle label="SMS notifications" description="Text alerts for urgent updates." checked={extraSettings.smsNotifications} onChange={(value) => updateExtra("smsNotifications", value)} />
+                <SettingToggle label="Marketing emails" description="Creator tips, product updates, and promos." checked={marketingEmails} onChange={setMarketingEmails} />
+                <div>
+                  <Label className="text-xs font-medium">Email summary</Label>
+                  <Select value={extraSettings.emailSummary} onValueChange={(value) => updateExtra("emailSummary", value)}>
+                    <SelectTrigger className="mt-1.5 h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="never">Never</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="messages" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Messages</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Allow messages" description="Let other creators start conversations with you." checked={allowMessages} onChange={setAllowMessages} />
+                <SettingToggle label="Message sound" description="Play a sound for incoming messages." checked={extraSettings.messageSound} onChange={(value) => updateExtra("messageSound", value)} />
+                <SettingToggle label="Allow group invites" description="Accept invites into group chats." checked={extraSettings.allowGroupInvites} onChange={(value) => updateExtra("allowGroupInvites", value)} />
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="media" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Media</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Autoplay media" description="Play videos and animated assets automatically." checked={autoplayMedia} onChange={setAutoplayMedia} />
+                <SettingToggle label="Autoplay GIFs" description="Animate GIF previews across the app." checked={extraSettings.autoplayGifs} onChange={(value) => updateExtra("autoplayGifs", value)} />
+                <SettingToggle label="High quality media" description="Prefer higher quality image and video previews." checked={extraSettings.highQualityMedia} onChange={(value) => updateExtra("highQualityMedia", value)} />
+                <SettingToggle label="Wi-Fi only media" description="Load heavy media only on Wi-Fi." checked={extraSettings.wifiOnlyMedia} onChange={(value) => updateExtra("wifiOnlyMedia", value)} />
+                <SettingToggle label="Captions enabled" description="Show captions or alt info when available." checked={extraSettings.captionsEnabled} onChange={(value) => updateExtra("captionsEnabled", value)} />
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="discovery" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Discovery</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Discoverable profile" description="Let the platform surface your profile." checked={extraSettings.discoverableProfile} onChange={(value) => updateExtra("discoverableProfile", value)} />
+                <SettingToggle label="Show in search" description="Include your profile in search results." checked={extraSettings.showInSearch} onChange={(value) => updateExtra("showInSearch", value)} />
+                <SettingToggle label="Recommend to others" description="Suggest your profile to similar users." checked={extraSettings.recommendToOthers} onChange={(value) => updateExtra("recommendToOthers", value)} />
+                <SettingToggle label="Profile highlights" description="Highlight selected content on your profile." checked={extraSettings.profileHighlights} onChange={(value) => updateExtra("profileHighlights", value)} />
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="accessibility" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Accessibility</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Reduced motion" description="Minimize transitions and motion effects." checked={extraSettings.reducedMotion} onChange={(value) => updateExtra("reducedMotion", value)} />
+                <SettingToggle label="Large text" description="Increase readability across the app." checked={extraSettings.largeText} onChange={(value) => updateExtra("largeText", value)} />
+                <SettingToggle label="High contrast" description="Use stronger contrast in UI surfaces." checked={extraSettings.highContrastMode} onChange={(value) => updateExtra("highContrastMode", value)} />
+                <SettingToggle label="Captions enabled" description="Show caption text and accessible labels." checked={extraSettings.captionsEnabled} onChange={(value) => updateExtra("captionsEnabled", value)} />
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="security" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Security</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Two-factor auth" description="Require a second step when signing in." checked={extraSettings.twoFactorEnabled} onChange={(value) => updateExtra("twoFactorEnabled", value)} />
+                <SettingToggle label="Login alerts" description="Be notified when new devices sign in." checked={extraSettings.loginAlerts} onChange={(value) => updateExtra("loginAlerts", value)} />
+                <SettingToggle label="Password for actions" description="Ask for your password before destructive changes." checked={extraSettings.requirePasswordForActions} onChange={(value) => updateExtra("requirePasswordForActions", value)} />
+                <div>
+                  <Label className="text-xs font-medium">Session timeout</Label>
+                  <Select value={String(extraSettings.sessionTimeoutMinutes)} onValueChange={(value) => updateExtra("sessionTimeoutMinutes", Number(value))}>
+                    <SelectTrigger className="mt-1.5 h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">15 minutes</SelectItem>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="60">60 minutes</SelectItem>
+                      <SelectItem value="120">2 hours</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="integrations" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Integrations</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Instagram sync" description="Sync profile links and updates." checked={extraSettings.instagramSync} onChange={(value) => updateExtra("instagramSync", value)} />
+                <SettingToggle label="Spotify sync" description="Show listening activity and playlists." checked={extraSettings.spotifySync} onChange={(value) => updateExtra("spotifySync", value)} />
+                <SettingToggle label="Calendar sync" description="Connect events to your calendar." checked={extraSettings.calendarSync} onChange={(value) => updateExtra("calendarSync", value)} />
+                <SettingToggle label="Drive sync" description="Back up assets and exports to Drive." checked={extraSettings.driveSync} onChange={(value) => updateExtra("driveSync", value)} />
+                <SettingToggle label="Slack sync" description="Forward alerts to Slack channels." checked={extraSettings.slackSync} onChange={(value) => updateExtra("slackSync", value)} />
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="activity" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Activity</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Show activity status" description="Let others see your online presence." checked={extraSettings.showActivityStatus} onChange={(value) => updateExtra("showActivityStatus", value)} />
+                <SettingToggle label="Typing indicator" description="Show when you are composing a message." checked={extraSettings.typingIndicator} onChange={(value) => updateExtra("typingIndicator", value)} />
+                <SettingToggle label="Backup exports" description="Keep periodic exports for your account." checked={extraSettings.backupExports} onChange={(value) => updateExtra("backupExports", value)} />
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="feed" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Feed</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Compact feed" description="Tighter cards and less whitespace." checked={compactMode} onChange={setCompactMode} />
+                <SettingToggle label="Autoplay media" description="Play videos automatically in feeds." checked={autoplayMedia} onChange={setAutoplayMedia} />
+                <SettingToggle label="Autoplay GIFs" description="Animate GIF previews in your feed." checked={extraSettings.autoplayGifs} onChange={(value) => updateExtra("autoplayGifs", value)} />
+                <div>
+                  <Label className="text-xs font-medium">Sidebar mode</Label>
+                  <Select value={extraSettings.sidebarMode} onValueChange={(value) => updateExtra("sidebarMode", value)}>
+                    <SelectTrigger className="mt-1.5 h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto</SelectItem>
+                      <SelectItem value="compact">Compact</SelectItem>
+                      <SelectItem value="wide">Wide</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="profile" className="space-y-6">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3"><CardTitle className="font-display text-base">Profile</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle label="Profile highlights" description="Feature selected posts on your profile." checked={extraSettings.profileHighlights} onChange={(value) => updateExtra("profileHighlights", value)} />
+                <SettingToggle label="Allow follow requests" description="Approve new followers before they connect." checked={extraSettings.allowFollowRequests} onChange={(value) => updateExtra("allowFollowRequests", value)} />
+                <SettingToggle label="Allow tagging" description="Let people tag your account in posts." checked={extraSettings.allowTagging} onChange={(value) => updateExtra("allowTagging", value)} />
+                <div>
+                  <Label className="text-xs font-medium">Content language</Label>
+                  <Select value={extraSettings.contentLanguage} onValueChange={(value) => updateExtra("contentLanguage", value)}>
+                    <SelectTrigger className="mt-1.5 h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="English">English</SelectItem>
+                      <SelectItem value="Spanish">Spanish</SelectItem>
+                      <SelectItem value="French">French</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+              </TabsContent>
+
+              <TabsContent value="advanced" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="border-border/60">
+                <CardHeader className="pb-3"><CardTitle className="font-display text-base">Advanced</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                <SettingToggle label="Beta features" description="Enable experimental product features." checked={extraSettings.betaFeatures} onChange={(value) => updateExtra("betaFeatures", value)} />
+                  <SettingToggle label="Developer mode" description="Expose extra debugging options." checked={extraSettings.developerMode} onChange={(value) => updateExtra("developerMode", value)} />
+                  <SettingToggle label="Data sharing" description="Allow first-party service optimization." checked={extraSettings.dataSharing} onChange={(value) => updateExtra("dataSharing", value)} />
+                  <SettingToggle label="Analytics sharing" description="Share anonymous usage analytics." checked={extraSettings.analyticsSharing} onChange={(value) => updateExtra("analyticsSharing", value)} />
+                  <SettingToggle label="Auto-save drafts" description="Keep draft text and form data synced locally." checked={extraSettings.autoSaveDrafts} onChange={(value) => updateExtra("autoSaveDrafts", value)} />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/60">
+                <CardHeader className="pb-3"><CardTitle className="font-display text-base">Archive</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <SettingToggle label="Auto archive backups" description="Keep automatic account snapshots." checked={extraSettings.backupExports} onChange={(value) => updateExtra("backupExports", value)} />
+                  <div>
+                    <Label className="text-xs font-medium">Auto archive days</Label>
+                    <Select value={String(extraSettings.autoArchiveDays)} onValueChange={(value) => updateExtra("autoArchiveDays", Number(value))}>
+                      <SelectTrigger className="mt-1.5 h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="7">7 days</SelectItem>
+                        <SelectItem value="14">14 days</SelectItem>
+                        <SelectItem value="30">30 days</SelectItem>
+                        <SelectItem value="90">90 days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+              </TabsContent>
+
+            </div>
+          </div>
         </Tabs>
 
         <div className="sticky bottom-4 mt-6">
@@ -811,6 +1367,28 @@ export default function SettingsPage() {
           </Card>
         </div>
       </form>
+    </div>
+  );
+}
+
+function SettingToggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }

@@ -1,29 +1,31 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { fetchAdminCommandHistory, runAdminOperation } from "@/lib/admin-operations";
 import { Download, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 const commands = [
-  { key: "cache_clear", label: "Cache clear", scope: "system" },
-  { key: "queue_rebuild", label: "Queue rebuild", scope: "workers" },
-  { key: "ingest_sync", label: "Ingest sync", scope: "analytics" },
-  { key: "report_export", label: "Report export", scope: "reports" },
+  { key: "cache_clear", label: "Cache clear", scope: "system", description: "Refresh cache-backed admin queries and clear stale operation state." },
+  { key: "queue_rebuild", label: "Queue rebuild", scope: "workers", description: "Re-seed workflow queues and mark worker orchestration as healthy." },
+  { key: "ingest_sync", label: "Ingest sync", scope: "analytics", description: "Trigger a synthetic analytics sync and stamp the monitoring stream." },
+  { key: "report_export", label: "Report export", scope: "reports", description: "Generate a maintenance export event for admin reporting pipelines." },
 ];
 
 export default function AdminOperationsPage() {
   const { user, authUser, impersonationTarget } = useAuth();
   const queryClient = useQueryClient();
   const [running, setRunning] = useState<string | null>(null);
-  const { data: history = [] } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["admin", "command-history"],
-    queryFn: async () => (await supabase.from("admin_command_history").select("*").order("created_at", { ascending: false }).limit(50)).data ?? [],
+    queryFn: fetchAdminCommandHistory,
   });
+  const history = data?.items ?? [];
+  const historySource = data?.source ?? "database";
 
   const runCommand = async (commandKey: string, commandLabel: string, scope: string) => {
     const actorId = authUser?.id || user?.id;
@@ -33,39 +35,20 @@ export default function AdminOperationsPage() {
       return;
     }
     setRunning(commandKey);
-    const { data, error } = await supabase.from("admin_command_history").insert([
-      {
-        actor_id: actorId,
-        command_key: commandKey,
-        command_label: commandLabel,
-        scope,
-        status: "running",
-        payload: {},
-      },
-    ]).select().maybeSingle();
-    if (error) {
-      toast.error(error.message);
+    try {
+      const result = await runAdminOperation({ actorId, commandKey, commandLabel, scope });
+      queryClient.invalidateQueries({ queryKey: ["admin", "command-history"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "monitoring-events"] });
+      toast.success(
+        result.source === "database"
+          ? `${commandLabel} complete`
+          : `${commandLabel} complete in fallback mode`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Operation failed");
+    } finally {
       setRunning(null);
-      return;
     }
-    await supabase.from("admin_command_history").update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
-      result: { message: `${commandLabel} complete` },
-    }).eq("id", data?.id);
-    await supabase.from("admin_monitoring_events").insert([
-      {
-        event_type: "maintenance",
-        severity: "info",
-        source: "admin",
-        message: `${commandLabel} completed`,
-        metadata: { command_key: commandKey, scope },
-      },
-    ]);
-    queryClient.invalidateQueries({ queryKey: ["admin", "command-history"] });
-    queryClient.invalidateQueries({ queryKey: ["admin", "monitoring-events"] });
-    toast.success(`${commandLabel} complete`);
-    setRunning(null);
   };
 
   return (
@@ -75,26 +58,48 @@ export default function AdminOperationsPage() {
           <CardTitle className="text-white">Operations console</CardTitle>
           <CardDescription className="text-slate-300">Fast maintenance actions with persistent command history.</CardDescription>
         </CardHeader>
+        {historySource === "local" && (
+          <CardContent className="pt-0">
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+              Supabase admin operations tables are not reachable yet, so this tab is using a local fallback history until the operations migration is applied and the schema cache is refreshed.
+            </div>
+          </CardContent>
+        )}
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {commands.map((command) => (
-            <Button
-              key={command.key}
-              variant="outline"
-              className="justify-start border-white/10 bg-white/5 text-white hover:bg-white/10"
-              onClick={() => runCommand(command.key, command.label, command.scope)}
-              disabled={running === command.key}
-            >
-              {command.key === "cache_clear" ? <RefreshCw className="h-4 w-4" /> : command.key === "queue_rebuild" ? <RotateCcw className="h-4 w-4" /> : command.key === "ingest_sync" ? <Download className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
-              {running === command.key ? "Running..." : command.label}
-            </Button>
+            <div key={command.key} className="rounded-3xl border border-white/10 bg-black/20 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-white">{command.label}</div>
+                  <div className="mt-1 text-sm text-slate-300">{command.description}</div>
+                  <Badge className="mt-3 border-white/10 bg-white/10 text-white">{command.scope}</Badge>
+                </div>
+                {command.key === "cache_clear" ? <RefreshCw className="h-4 w-4 text-cyan-300" /> : command.key === "queue_rebuild" ? <RotateCcw className="h-4 w-4 text-cyan-300" /> : command.key === "ingest_sync" ? <Download className="h-4 w-4 text-cyan-300" /> : <Trash2 className="h-4 w-4 text-cyan-300" />}
+              </div>
+              <Button
+                variant="outline"
+                className="mt-4 w-full justify-center border-white/10 bg-white/5 text-white hover:bg-white/10"
+                onClick={() => runCommand(command.key, command.label, command.scope)}
+                disabled={running === command.key}
+              >
+                {running === command.key ? "Running..." : `Run ${command.label}`}
+              </Button>
+            </div>
           ))}
         </CardContent>
       </Card>
 
       <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
         <CardHeader>
-          <CardTitle className="text-white">Command history</CardTitle>
-          <CardDescription className="text-slate-300">Every maintenance command is stored in the database.</CardDescription>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-white">Command history</CardTitle>
+              <CardDescription className="text-slate-300">
+                {historySource === "database" ? "Every maintenance command is stored in the database." : "Recent maintenance commands are temporarily stored in local fallback history."}
+              </CardDescription>
+            </div>
+            <Badge className="border-white/10 bg-white/10 text-white">{historySource === "database" ? "Database" : "Fallback"}</Badge>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -108,6 +113,11 @@ export default function AdminOperationsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {isLoading && (
+                <TableRow className="border-white/10">
+                  <TableCell colSpan={5} className="py-10 text-center text-slate-400">Loading operations history...</TableCell>
+                </TableRow>
+              )}
               {(history as any[]).map((entry) => (
                 <TableRow key={entry.id} className="border-white/10">
                   <TableCell className="text-white">{entry.command_label}</TableCell>

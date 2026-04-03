@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_command_history: {
+        Row: {
+          actor_id: string
+          command_key: string
+          command_label: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          payload: Json
+          result: Json
+          scope: string
+          status: string
+        }
+        Insert: {
+          actor_id: string
+          command_key: string
+          command_label: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          result?: Json
+          scope?: string
+          status?: string
+        }
+        Update: {
+          actor_id?: string
+          command_key?: string
+          command_label?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          result?: Json
+          scope?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      admin_monitoring_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          message: string
+          metadata: Json
+          severity: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          message: string
+          metadata?: Json
+          severity?: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          severity?: string
+          source?: string
+        }
+        Relationships: []
+      }
       bookmarks: {
         Row: {
           created_at: string
@@ -549,45 +618,165 @@ export type Database = {
       user_settings: {
         Row: {
           allow_messages: boolean
+          allow_follow_requests: boolean
+          allow_group_invites: boolean
+          allow_tagging: boolean
           autoplay_media: boolean
+          autoplay_gifs: boolean
+          analytics_sharing: boolean
           compact_mode: boolean
           created_at: string
+          backup_exports: boolean
+          beta_features: boolean
+          captions_enabled: boolean
+          calendar_sync: boolean
+          content_language: string
+          data_sharing: boolean
+          developer_mode: boolean
+          discoverable_profile: boolean
           email_notifications: boolean
+          email_summary: string
           id: string
+          drive_sync: boolean
+          feed_density: string
+          high_contrast_mode: boolean
+          high_quality_media: boolean
+          instagram_sync: boolean
+          large_text: boolean
           marketing_emails: boolean
+          login_alerts: boolean
+          message_sound: boolean
+          reduced_motion: boolean
           profile_visibility: string
+          profile_highlights: boolean
+          push_notifications: boolean
+          recommend_to_others: boolean
+          require_password_for_actions: boolean
+          session_timeout_minutes: number
           show_location: boolean
+          show_activity_status: boolean
+          show_in_search: boolean
+          sidebar_mode: string
+          slack_sync: boolean
+          sms_notifications: boolean
+          spotify_sync: boolean
           theme_mode: string
+          theme_accent: string
+          two_factor_enabled: boolean
+          typing_indicator: boolean
+          auto_archive_days: number
+          auto_save_drafts: boolean
           updated_at: string
           user_id: string
+          wifi_only_media: boolean
         }
         Insert: {
           allow_messages?: boolean
+          allow_follow_requests?: boolean
+          allow_group_invites?: boolean
+          allow_tagging?: boolean
           autoplay_media?: boolean
+          autoplay_gifs?: boolean
+          analytics_sharing?: boolean
           compact_mode?: boolean
           created_at?: string
+          backup_exports?: boolean
+          beta_features?: boolean
+          captions_enabled?: boolean
+          calendar_sync?: boolean
+          content_language?: string
+          data_sharing?: boolean
+          developer_mode?: boolean
+          discoverable_profile?: boolean
           email_notifications?: boolean
+          email_summary?: string
           id?: string
+          drive_sync?: boolean
+          feed_density?: string
+          high_contrast_mode?: boolean
+          high_quality_media?: boolean
+          instagram_sync?: boolean
+          large_text?: boolean
           marketing_emails?: boolean
+          login_alerts?: boolean
+          message_sound?: boolean
+          reduced_motion?: boolean
           profile_visibility?: string
+          profile_highlights?: boolean
+          push_notifications?: boolean
+          recommend_to_others?: boolean
+          require_password_for_actions?: boolean
+          session_timeout_minutes?: number
           show_location?: boolean
+          show_activity_status?: boolean
+          show_in_search?: boolean
+          sidebar_mode?: string
+          slack_sync?: boolean
+          sms_notifications?: boolean
+          spotify_sync?: boolean
           theme_mode?: string
+          theme_accent?: string
+          two_factor_enabled?: boolean
+          typing_indicator?: boolean
+          auto_archive_days?: number
+          auto_save_drafts?: boolean
           updated_at?: string
           user_id: string
+          wifi_only_media?: boolean
         }
         Update: {
           allow_messages?: boolean
+          allow_follow_requests?: boolean
+          allow_group_invites?: boolean
+          allow_tagging?: boolean
           autoplay_media?: boolean
+          autoplay_gifs?: boolean
+          analytics_sharing?: boolean
           compact_mode?: boolean
           created_at?: string
+          backup_exports?: boolean
+          beta_features?: boolean
+          captions_enabled?: boolean
+          calendar_sync?: boolean
+          content_language?: string
+          data_sharing?: boolean
+          developer_mode?: boolean
+          discoverable_profile?: boolean
           email_notifications?: boolean
+          email_summary?: string
           id?: string
+          drive_sync?: boolean
+          feed_density?: string
+          high_contrast_mode?: boolean
+          high_quality_media?: boolean
+          instagram_sync?: boolean
+          large_text?: boolean
           marketing_emails?: boolean
+          login_alerts?: boolean
+          message_sound?: boolean
+          reduced_motion?: boolean
           profile_visibility?: string
+          profile_highlights?: boolean
+          push_notifications?: boolean
+          recommend_to_others?: boolean
+          require_password_for_actions?: boolean
+          session_timeout_minutes?: number
           show_location?: boolean
+          show_activity_status?: boolean
+          show_in_search?: boolean
+          sidebar_mode?: string
+          slack_sync?: boolean
+          sms_notifications?: boolean
+          spotify_sync?: boolean
           theme_mode?: string
+          theme_accent?: string
+          two_factor_enabled?: boolean
+          typing_indicator?: boolean
+          auto_archive_days?: number
+          auto_save_drafts?: boolean
           updated_at?: string
           user_id?: string
+          wifi_only_media?: boolean
         }
         Relationships: []
       }
@@ -602,6 +791,7 @@ export type Database = {
           location: string | null
           last_seen_at: string | null
           skills: string[] | null
+          status: string
           updated_at: string
           user_id: string
           username: string | null
@@ -617,6 +807,7 @@ export type Database = {
           location?: string | null
           last_seen_at?: string | null
           skills?: string[] | null
+          status?: string
           updated_at?: string
           user_id: string
           username?: string | null
@@ -632,6 +823,7 @@ export type Database = {
           location?: string | null
           last_seen_at?: string | null
           skills?: string[] | null
+          status?: string
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -921,6 +1113,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_get_profiles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          last_seen_at: string | null
+          location: string | null
+          role: string
+          status: string
+          user_id: string
+          username: string | null
+          website: string | null
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

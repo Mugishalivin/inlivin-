@@ -20,14 +20,9 @@ import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminContentPage from "./pages/admin/AdminContentPage";
 import AdminImpersonatePage from "./pages/admin/AdminImpersonatePage";
-import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
-import AdminAuditPage from "./pages/admin/AdminAuditPage";
 import AdminMonitoringPage from "./pages/admin/AdminMonitoringPage";
 import AdminOperationsPage from "./pages/admin/AdminOperationsPage";
 import AdminReportsPage from "./pages/admin/AdminReportsPage";
-import AdminSecurityPage from "./pages/admin/AdminSecurityPage";
-import AdminIntegrationsPage from "./pages/admin/AdminIntegrationsPage";
-import AdminWorkflowsPage from "./pages/admin/AdminWorkflowsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import MessagesPage from "./pages/MessagesPage";
@@ -131,13 +126,13 @@ const App = () => (
                   <Route path="impersonate" element={<AdminImpersonatePage />} />
                   <Route path="content" element={<AdminContentPage />} />
                   <Route path="reports" element={<AdminReportsPage />} />
-                  <Route path="analytics" element={<AdminAnalyticsPage />} />
-                  <Route path="audit" element={<AdminAuditPage />} />
                   <Route path="monitoring" element={<AdminMonitoringPage />} />
                   <Route path="operations" element={<AdminOperationsPage />} />
-                  <Route path="security" element={<AdminSecurityPage />} />
-                  <Route path="integrations" element={<AdminIntegrationsPage />} />
-                  <Route path="workflows" element={<AdminWorkflowsPage />} />
+                  <Route path="security" element={<Navigate to="/admin/overview" replace />} />
+                  <Route path="integrations" element={<Navigate to="/admin/overview" replace />} />
+                  <Route path="analytics" element={<Navigate to="/admin/overview" replace />} />
+                  <Route path="audit" element={<Navigate to="/admin/monitoring" replace />} />
+                  <Route path="workflows" element={<Navigate to="/admin/operations" replace />} />
                 </Route>
               </Route>
               <Route

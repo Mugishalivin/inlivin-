@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchAdminProfiles } from "@/lib/admin-profiles";
 import { AlertTriangle, Ban, CheckCircle2, Copy, EyeOff, Flag, MessageSquareWarning, RefreshCw, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,7 +38,7 @@ export default function AdminReportsPage() {
   });
   const { data: profiles = [] } = useQuery({
     queryKey: ["admin", "reports-profiles"],
-    queryFn: async () => (await supabase.from("profiles").select("user_id, display_name, username, status, avatar_url")).data ?? [],
+    queryFn: fetchAdminProfiles,
   });
   const { data: events = [] } = useQuery({
     queryKey: ["admin", "reports-events"],

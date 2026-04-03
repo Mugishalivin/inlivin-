@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { fetchAdminProfiles } from "@/lib/admin-profiles";
 import { toast } from "sonner";
 import {
   ArrowDownAZ,
@@ -175,10 +176,7 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
   });
   const { data: users = [], isLoading: loadingUsers } = useQuery({
     queryKey: ["admin", "users"],
-    queryFn: async () => {
-      const { data } = await supabase.from("profiles").select(`*, user_roles(role)`).order("created_at", { ascending: false });
-      return data ?? [];
-    },
+    queryFn: fetchAdminProfiles,
   });
   const { data: auditLogs = [] } = useQuery({
     queryKey: ["admin", "audit-logs"],

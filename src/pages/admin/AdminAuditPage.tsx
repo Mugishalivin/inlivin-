@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { fetchAdminProfiles } from "@/lib/admin-profiles";
 import { FileClock, RefreshCw, Search } from "lucide-react";
 
 export default function AdminAuditPage() {
@@ -27,7 +28,7 @@ export default function AdminAuditPage() {
   });
   const { data: profiles = [] } = useQuery({
     queryKey: ["admin", "audit-page-profiles"],
-    queryFn: async () => (await supabase.from("profiles").select("user_id, display_name, username")).data ?? [],
+    queryFn: fetchAdminProfiles,
   });
 
   const actorMap = useMemo(() => {

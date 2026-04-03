@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { fetchAdminProfiles } from "@/lib/admin-profiles";
 import { ArrowRightLeft, Search, Shield, SquareUserRound } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,7 +21,7 @@ export function ImpersonationPanel() {
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["admin", "impersonation-users"],
-    queryFn: async () => (await supabase.from("profiles").select("*, user_roles(role)").order("created_at", { ascending: false }).limit(100)).data ?? [],
+    queryFn: async () => (await fetchAdminProfiles()).slice(0, 100),
   });
   const { data: sessions = [] } = useQuery({
     queryKey: ["admin", "impersonation-sessions"],

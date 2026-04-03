@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { applyAppearancePreference, applyThemePreference, resetAppearancePreference, resetThemePreference } from "@/lib/theme";
 
 interface Profile {
   id: string;
@@ -14,6 +16,17 @@ interface Profile {
   location: string | null;
   website: string | null;
   last_seen_at: string | null;
+}
+
+interface UserSettings {
+  theme_mode?: "light" | "dark" | "system";
+  theme_accent?: "sunset" | "ocean" | "forest" | "midnight" | null;
+  feed_density?: "comfortable" | "compact" | "dense" | null;
+  compact_mode?: boolean | null;
+  reduced_motion?: boolean | null;
+  large_text?: boolean | null;
+  high_contrast_mode?: boolean | null;
+  sidebar_mode?: string | null;
 }
 
 interface AuthContextType {
@@ -59,6 +72,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [loading, setLoading] = useState(true);
   const userIdRef = useRef<string | null>(null);
+
+  const { data: authSettings } = useQuery({
+    queryKey: ["auth-user-settings", authUser?.id],
+    queryFn: async () => {
+      if (!authUser) return null;
+      const { data, error } = await supabase
+        .from("user_settings")
+        .select("theme_mode, theme_accent, feed_density, compact_mode, reduced_motion, large_text, high_contrast_mode, sidebar_mode")
+        .eq("user_id", authUser.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as UserSettings | null;
+    },
+    enabled: !!authUser,
+  });
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -126,6 +154,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [authUser, authProfile, authRole, impersonationTarget]);
 
   useEffect(() => {
+    if (loading) return;
+    if (!authUser) {
+      resetThemePreference();
+      resetAppearancePreference();
+      return;
+    }
+
+    if (!authSettings) return;
+
+    applyThemePreference(authSettings.theme_mode ?? "system");
+    applyAppearancePreference({
+      themeAccent: authSettings.theme_accent ?? "sunset",
+      feedDensity: authSettings.feed_density ?? (authSettings.compact_mode ? "compact" : "comfortable"),
+      compactMode: authSettings.compact_mode ?? false,
+      reducedMotion: authSettings.reduced_motion ?? false,
+      largeText: authSettings.large_text ?? false,
+      highContrastMode: authSettings.high_contrast_mode ?? false,
+      sidebarMode: authSettings.sidebar_mode ?? "auto",
+    });
+  }, [authSettings, authUser]);
+
+  useEffect(() => {
     let alive = true;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -191,6 +241,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("logout_at", new Date().toISOString());
     sessionStorage.removeItem("admin_view_mode");
     sessionStorage.removeItem("impersonation_target");
+    resetThemePreference();
+    resetAppearancePreference();
     await supabase.auth.signOut();
     setAuthUser(null);
     setUser(null);
