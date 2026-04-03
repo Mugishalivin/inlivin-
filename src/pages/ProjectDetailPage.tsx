@@ -19,6 +19,7 @@ import {
   User, X, Check, XCircle, FileText, Archive, ZoomIn, Maximize2, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { UserAvatar, UserName } from "@/components/UserLink";
+import { ReportDialog } from "@/components/ReportDialog";
 
 const collabRoles = [
   { value: "editor", label: "Editor", icon: Pen },
@@ -50,6 +51,7 @@ export default function ProjectDetailPage() {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; type: string | null; name: string } | null>(null);
   const [previewIndex, setPreviewIndex] = useState(-1);
+  const [reportOpen, setReportOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery({
@@ -259,6 +261,9 @@ export default function ProjectDetailPage() {
         {isOwner && (
           <Button variant="hero" size="sm" onClick={() => setInviteOpen(true)} className="shrink-0"><UserPlus size={14} /> Invite</Button>
         )}
+        <Button variant="outline" size="sm" className="shrink-0 border-border bg-background hover:bg-secondary" onClick={() => setReportOpen(true)}>
+          Report
+        </Button>
       </motion.div>
 
       {pendingInvite && (
@@ -569,6 +574,16 @@ export default function ProjectDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        entityType="project"
+        entityId={projectId || ""}
+        reportedUserId={project.user_id}
+        entityTitle={project.title}
+        entityLabel="project"
+      />
     </div>
   );
 }

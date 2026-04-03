@@ -361,6 +361,129 @@ export type Database = {
           },
         ]
       }
+      announcements: {
+        Row: {
+          id: string
+          title: string
+          content: string
+          created_by: string
+          media_url: string | null
+          media_type: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          content: string
+          created_by: string
+          media_url?: string | null
+          media_type?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          content?: string
+          created_by?: string
+          media_url?: string | null
+          media_type?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      promotions: {
+        Row: {
+          id: string
+          title: string
+          content: string
+          discount_percentage: number | null
+          valid_until: string | null
+          created_by: string
+          media_url: string | null
+          media_type: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          content: string
+          discount_percentage?: number | null
+          valid_until?: string | null
+          created_by: string
+          media_url?: string | null
+          media_type?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          content?: string
+          discount_percentage?: number | null
+          valid_until?: string | null
+          created_by?: string
+          media_url?: string | null
+          media_type?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ads: {
+        Row: {
+          id: string
+          title: string
+          content: string
+          image_url: string | null
+          link_url: string | null
+          target_audience: string | null
+          created_by: string
+          media_url: string | null
+          media_type: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          content: string
+          image_url?: string | null
+          link_url?: string | null
+          target_audience?: string | null
+          created_by: string
+          media_url?: string | null
+          media_type?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          content?: string
+          image_url?: string | null
+          link_url?: string | null
+          target_audience?: string | null
+          created_by?: string
+          media_url?: string | null
+          media_type?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

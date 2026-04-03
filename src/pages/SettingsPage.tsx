@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/LoadingSkeletons";
+import { applyThemePreference } from "@/lib/theme";
 import {
   Bell,
   Copy,
@@ -166,16 +167,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const resolvedTheme =
-      themeMode === "system"
-        ? window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light"
-        : themeMode;
-
-    document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
-    localStorage.setItem("theme", themeMode);
+    applyThemePreference(themeMode);
   }, [themeMode]);
 
   const profileCompletion = useMemo(() => {

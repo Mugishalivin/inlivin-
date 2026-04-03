@@ -102,6 +102,40 @@
 }
 
 @layer utilities {
+  .admin-surface[data-theme-mode="light"] .text-white,
+  .admin-surface[data-theme-mode="light"] .text-slate-100,
+  .admin-surface[data-theme-mode="light"] .text-slate-200 {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .admin-surface[data-theme-mode="light"] .text-slate-300,
+  .admin-surface[data-theme-mode="light"] .text-slate-400,
+  .admin-surface[data-theme-mode="light"] .text-slate-500,
+  .admin-surface[data-theme-mode="light"] .text-muted-foreground {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .admin-surface[data-theme-mode="light"] .bg-black\/20,
+  .admin-surface[data-theme-mode="light"] .bg-black\/10 {
+    background-color: hsl(var(--background) / 0.65) !important;
+  }
+
+  .admin-surface[data-theme-mode="light"] .bg-white\/5,
+  .admin-surface[data-theme-mode="light"] .bg-white\/6,
+  .admin-surface[data-theme-mode="light"] .bg-white\/8 {
+    background-color: hsl(var(--card) / 0.95) !important;
+  }
+
+  .admin-surface[data-theme-mode="light"] .border-white\/10,
+  .admin-surface[data-theme-mode="light"] .border-white\/15 {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .admin-surface[data-theme-mode="light"] .hover\:bg-white\/10:hover,
+  .admin-surface[data-theme-mode="light"] .hover\:bg-white\/15:hover {
+    background-color: hsl(var(--secondary)) !important;
+  }
+
   .text-gradient {
     background: linear-gradient(135deg, hsl(12, 80%, 55%), hsl(175, 60%, 38%));
     -webkit-background-clip: text;

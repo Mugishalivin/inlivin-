@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ArrowLeft, MessageCircle } from "lucide-react";
+import { ReportDialog } from "@/components/ReportDialog";
+import { isVideoMedia } from "@/lib/update-feed";
 
 type ContentType = "announcement" | "promotion" | "ad";
 
@@ -25,6 +27,8 @@ export default function ContentDetailPage() {
   const navigate = useNavigate();
   const { contentType, contentId } = useParams<{ contentType: ContentType; contentId: string }>();
   const [messageText, setMessageText] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
+  const heroVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const tableName = useMemo(() => resolveTable(contentType || ""), [contentType]);
 
@@ -42,6 +46,42 @@ export default function ContentDetailPage() {
     },
     enabled: !!tableName && !!contentId,
   });
+
+  const isOwner = user?.id === item?.created_by;
+  const mediaUrl = item?.media_url || item?.image_url || null;
+  const mediaType = item?.media_type || "";
+  const isVideo = isVideoMedia(mediaUrl, mediaType);
+
+  useEffect(() => {
+    if (!mediaUrl || !isVideo) return;
+    const video = heroVideoRef.current;
+    if (!video) return;
+
+    video.muted = true;
+    video.playsInline = true;
+    video.loop = true;
+    video.defaultMuted = true;
+    video.preload = "auto";
+
+    const attemptPlay = () => {
+      video.load();
+      const promise = video.play();
+      if (promise) promise.catch(() => undefined);
+    };
+
+    if (video.readyState >= 2) {
+      attemptPlay();
+      return;
+    }
+
+    const onCanPlay = () => attemptPlay();
+    video.addEventListener("canplay", onCanPlay, { once: true });
+    video.addEventListener("loadedmetadata", attemptPlay, { once: true });
+    return () => {
+      video.removeEventListener("canplay", onCanPlay);
+      video.removeEventListener("loadedmetadata", attemptPlay);
+    };
+  }, [isVideo, mediaUrl]);
 
   const communicate = useMutation({
     mutationFn: async () => {
@@ -137,10 +177,149 @@ export default function ContentDetailPage() {
     );
   }
 
-  const isOwner = user?.id === item.created_by;
-  const mediaUrl = item.media_url || item.image_url || null;
-  const mediaType = item.media_type || "";
-  const isVideo = mediaType.startsWith("video/");
+  if (mediaUrl) {
+    return (
+      <div className="fixed inset-0 overflow-hidden bg-background text-foreground">
+        <div className="relative h-full w-full overflow-hidden">
+          {mediaUrl ? (
+            isVideo ? (
+              <video
+                ref={heroVideoRef}
+                src={mediaUrl}
+                autoPlay
+                muted
+                defaultMuted
+                loop
+                playsInline
+                preload="auto"
+                disablePictureInPicture
+                controls={false}
+                className="absolute inset-0 h-full w-full object-cover brightness-[0.28] contrast-110 saturate-90 scale-105"
+              />
+            ) : (
+              <img
+                src={mediaUrl}
+                alt={item.title}
+                className="absolute inset-0 h-full w-full object-cover brightness-[0.28] contrast-110 saturate-90 scale-105"
+              />
+            )
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+          )}
+
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/55 to-black/90" />
+
+          <div className="relative z-10 flex h-full flex-col justify-between p-4 sm:p-6 lg:p-8">
+            <div className="flex items-start justify-between gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(-1)}
+                className="border border-white/10 bg-white/10 text-white backdrop-blur hover:bg-white/15 hover:text-white"
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" />
+                Back
+              </Button>
+              <Badge className="border-white/10 bg-white/10 px-3 py-1 text-white backdrop-blur">
+                {item.is_active ? "Live" : "Pending Review"}
+              </Badge>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+              <div className="max-w-3xl space-y-4 lg:ml-auto lg:max-w-[36rem] lg:pl-8 xl:pl-14">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="border-white/10 bg-white/10 px-3 py-1 text-white backdrop-blur">
+                    {contentType ? contentType[0].toUpperCase() + contentType.slice(1) : "Content"}
+                  </Badge>
+                  {item.valid_until && (
+                    <Badge className="border-white/10 bg-white/10 px-3 py-1 text-white backdrop-blur">
+                      Ends {new Date(item.valid_until).toLocaleDateString()}
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <h1 className="font-display text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
+                    {item.title}
+                  </h1>
+                  <p className="max-w-2xl text-sm leading-6 text-white/80 sm:text-base">
+                    {item.content}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-xs text-white/70">
+                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 backdrop-blur">
+                    {new Date(item.created_at).toLocaleDateString()}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 backdrop-blur">
+                    {contentType ? `${contentType} update` : "Platform update"}
+                  </span>
+                  {item.target_audience && (
+                    <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 backdrop-blur">
+                      Audience {item.target_audience}
+                    </span>
+                  )}
+                  {"discount_percentage" in item && item.discount_percentage !== null && (
+                    <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 backdrop-blur">
+                      Discount {item.discount_percentage}%
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[1.75rem] border border-white/10 bg-white/10 p-4 text-white shadow-2xl backdrop-blur-xl lg:mr-6 xl:mr-10">
+                <div className="space-y-3">
+                  {isOwner ? (
+                    <p className="text-sm text-white/70">This is your own content.</p>
+                  ) : (
+                    <>
+                      <Label htmlFor="communicate-message" className="text-white">
+                        Tell them what you want
+                      </Label>
+                      <Textarea
+                        id="communicate-message"
+                        value={messageText}
+                        onChange={(e) => setMessageText(e.target.value)}
+                        placeholder="Hi, I want to discuss this ad..."
+                        className="min-h-24 border-white/10 bg-black/20 text-white placeholder:text-white/50"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => communicate.mutate()}
+                          disabled={!messageText.trim() || communicate.isPending}
+                          className="flex-1 bg-white text-slate-950 hover:bg-white/90"
+                        >
+                          <MessageCircle className="mr-2 h-4 w-4" />
+                          {communicate.isPending ? "Sending..." : "Communicate"}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="w-full border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                    onClick={() => setReportOpen(true)}
+                  >
+                    Report content
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ReportDialog
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          entityType={(contentType || "announcement") as ContentType}
+          entityId={contentId || ""}
+          reportedUserId={item.created_by}
+          entityTitle={item.title}
+          entityLabel={`${contentType || "content"} content`}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl p-6">
@@ -210,8 +389,25 @@ export default function ContentDetailPage() {
               </Button>
             </>
           )}
+          <Button
+            variant="outline"
+            className="border-border bg-background hover:bg-secondary"
+            onClick={() => setReportOpen(true)}
+          >
+            Report content
+          </Button>
         </CardContent>
       </Card>
+
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        entityType={(contentType || "announcement") as ContentType}
+        entityId={contentId || ""}
+        reportedUserId={item.created_by}
+        entityTitle={item.title}
+        entityLabel={`${contentType || "content"} content`}
+      />
     </div>
   );
 }

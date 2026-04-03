@@ -11,14 +11,20 @@ import { CTASection } from "@/components/CTASection";
 import { Footer } from "@/components/Footer";
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, role, adminViewMode, authRole } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && user) {
-      navigate("/dashboard", { replace: true });
+      if ((role === "admin" || authRole === "admin") && !adminViewMode) {
+        navigate("/continue-as", { replace: true });
+      } else if ((role === "admin" || authRole === "admin") && adminViewMode === "admin") {
+        navigate("/admin/overview", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, role, adminViewMode, authRole]);
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

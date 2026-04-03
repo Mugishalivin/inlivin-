@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface EventCardProps {
   event: any;
@@ -50,8 +51,11 @@ export function EventCard({
   const [isHovered, setIsHovered] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [shareMessage, setShareMessage] = useState(`Check out this event: ${event.title}`);
   const [searchQuery, setSearchQuery] = useState("");
+  const [reportReason, setReportReason] = useState("Inappropriate content");
+  const [reportDetails, setReportDetails] = useState("");
 
   const eventDate = new Date(event.event_date);
   const formattedDate = eventDate.toLocaleDateString("en", {
@@ -132,20 +136,39 @@ export function EventCard({
 
   // Report button
   const handleReport = async () => {
+    if (!user?.id) {
+      toast.error("Please sign in to report this event.");
+      return;
+    }
     setIsReporting(true);
     try {
+      const { error } = await supabase.from("user_reports").insert({
+        reporter_id: user.id,
+        reported_user_id: event.user_id,
+        entity_type: "event",
+        entity_id: event.id,
+        reason: reportReason,
+        details: {
+          report_details: reportDetails.trim() || null,
+          entity_title: event.title,
+          entity_description: event.description || null,
+          reporter_name: user.user_metadata?.name || user.email || "anonymous",
+        },
+      });
+      if (error) throw error;
       await supabase.from("notifications").insert({
         user_id: event.user_id,
-        title: "Event Reported",
-        message: `Event "${event.title}" was reported by a user.`,
+        title: "Content reported",
+        message: `One of your events was reported and is under review.`,
         type: "report",
         reference_id: event.id,
         reference_type: "event",
       });
-      toast.success("Event reported. Thank you!");
+      toast.success("Report sent to admin review.");
       setIsReporting(false);
+      setShowReportModal(false);
     } catch (err: any) {
-      toast.success("Event reported. Thank you!");
+      toast.error(err.message || "Failed to send report");
       setIsReporting(false);
     }
   };
@@ -288,13 +311,13 @@ export function EventCard({
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleReport();
-                    }}
-                    disabled={isReporting}
-                    variant="outline"
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowReportModal(true);
+                  }}
+                  disabled={isReporting}
+                  variant="outline"
                     size="lg"
                     className="bg-red-500/20 border-red-400/50 hover:bg-red-500/30 text-red-300 hover:text-red-200 font-bold text-base px-8"
                   >
@@ -470,6 +493,47 @@ export function EventCard({
                   💡 Try searching: music, art, workshop, online...
                 </p>
               )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showReportModal} onOpenChange={setShowReportModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg">Report this event</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">Reason</label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {["Inappropriate content", "Spam", "Harassment", "False information"].map((reason) => (
+                  <Button
+                    key={reason}
+                    type="button"
+                    variant={reportReason === reason ? "default" : "outline"}
+                    className="justify-start"
+                    onClick={() => setReportReason(reason)}
+                  >
+                    {reason}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">Details</label>
+              <Textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Add anything helpful for the review team..."
+                className="min-h-28"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowReportModal(false)}>Cancel</Button>
+              <Button className="flex-1" onClick={handleReport} disabled={isReporting}>
+                {isReporting ? "Sending..." : "Submit report"}
+              </Button>
             </div>
           </div>
         </DialogContent>

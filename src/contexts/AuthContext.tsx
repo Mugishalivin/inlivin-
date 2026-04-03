@@ -21,18 +21,42 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   role: 'admin' | 'moderator' | 'user' | null;
+  authUser: User | null;
+  authRole: 'admin' | 'moderator' | 'user' | null;
+  adminViewMode: 'user' | 'admin' | null;
+  impersonationTarget: { userId: string; label: string } | null;
+  readOnlyPreview: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  setAdminViewMode: (mode: 'user' | 'admin' | null) => void;
+  startImpersonation: (target: { userId: string; label: string }) => void;
+  stopImpersonation: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [authUser, setAuthUser] = useState<User | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [authProfile, setAuthProfile] = useState<Profile | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [authRole, setAuthRole] = useState<'admin' | 'moderator' | 'user' | null>(null);
   const [role, setRole] = useState<'admin' | 'moderator' | 'user' | null>(null);
+  const [adminViewMode, setAdminViewModeState] = useState<'user' | 'admin' | null>(() => {
+    const stored = sessionStorage.getItem("admin_view_mode");
+    return stored === "user" || stored === "admin" ? stored : null;
+  });
+  const [impersonationTarget, setImpersonationTargetState] = useState<{ userId: string; label: string } | null>(() => {
+    const raw = sessionStorage.getItem("impersonation_target");
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as { userId: string; label: string };
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
   const userIdRef = useRef<string | null>(null);
 
@@ -42,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("user_id", userId)
       .single();
-    setProfile(data as Profile | null);
+    setAuthProfile(data as Profile | null);
   };
 
   const fetchRole = async (userId: string) => {
@@ -51,13 +75,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("role")
       .eq("user_id", userId)
       .single();
-    setRole(data?.role || 'user');
+    setAuthRole(data?.role || 'user');
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.id);
-      await fetchRole(user.id);
+    if (authUser) {
+      await fetchProfile(authUser.id);
+      await fetchRole(authUser.id);
     }
   };
 
@@ -66,9 +90,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.from("profiles").update({ last_seen_at: now }).eq("user_id", userId);
   };
 
+  const applyEffectiveView = async (
+    sessionUser: User | null,
+    sessionProfile: Profile | null,
+    sessionRole: 'admin' | 'moderator' | 'user' | null,
+    impersonation: { userId: string; label: string } | null,
+  ) => {
+    if (sessionUser && sessionRole === "admin" && impersonation) {
+      const { data: previewProfile } = await supabase.from("profiles").select("*").eq("user_id", impersonation.userId).maybeSingle();
+      const { data: previewRole } = await supabase.from("user_roles").select("role").eq("user_id", impersonation.userId).maybeSingle();
+      setUser({ ...(sessionUser as any), id: impersonation.userId } as User);
+      setProfile(previewProfile as Profile | null);
+      setRole(previewRole?.role || "user");
+      return;
+    }
+
+    setUser(sessionUser);
+    setProfile(sessionProfile);
+    setRole(sessionRole);
+  };
+
   useEffect(() => {
     userIdRef.current = user?.id ?? null;
   }, [user]);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      await applyEffectiveView(authUser, authProfile, authRole, impersonationTarget);
+      if (!alive) return;
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [authUser, authProfile, authRole, impersonationTarget]);
 
   useEffect(() => {
     let alive = true;
@@ -77,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (_event, nextSession) => {
         if (!alive) return;
         setSession(nextSession);
-        setUser(nextSession?.user ?? null);
+        setAuthUser(nextSession?.user ?? null);
         if (nextSession?.user) {
           const nextUserId = nextSession.user.id;
           setTimeout(() => {
@@ -87,6 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             touchLastSeen(nextUserId);
           }, 0);
         } else {
+          setAuthProfile(null);
+          setAuthRole(null);
           setProfile(null);
           setRole(null);
         }
@@ -97,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: nextSession } }) => {
       if (!alive) return;
       setSession(nextSession);
-      setUser(nextSession?.user ?? null);
+      setAuthUser(nextSession?.user ?? null);
       if (nextSession?.user) {
         fetchProfile(nextSession.user.id);
         fetchRole(nextSession.user.id);
@@ -132,15 +189,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     localStorage.setItem("logout_at", new Date().toISOString());
+    sessionStorage.removeItem("admin_view_mode");
+    sessionStorage.removeItem("impersonation_target");
     await supabase.auth.signOut();
+    setAuthUser(null);
     setUser(null);
     setSession(null);
+    setAuthProfile(null);
     setProfile(null);
+    setAuthRole(null);
     setRole(null);
+    setAdminViewModeState(null);
+    setImpersonationTargetState(null);
   };
 
+  const setAdminViewMode = (mode: 'user' | 'admin' | null) => {
+    setAdminViewModeState(mode);
+    if (mode) {
+      sessionStorage.setItem("admin_view_mode", mode);
+    } else {
+      sessionStorage.removeItem("admin_view_mode");
+    }
+  };
+
+  const startImpersonation = (target: { userId: string; label: string }) => {
+    setImpersonationTargetState(target);
+    sessionStorage.setItem("impersonation_target", JSON.stringify(target));
+    if (authUser && authRole === "admin") {
+      void supabase.from("admin_impersonation_sessions").insert([
+        {
+          admin_id: authUser.id,
+          target_user_id: target.userId,
+          reason: target.label,
+          is_active: true,
+        },
+      ]);
+    }
+  };
+
+  const stopImpersonation = () => {
+    if (authUser && authRole === "admin" && impersonationTarget) {
+      void supabase
+        .from("admin_impersonation_sessions")
+        .update({ is_active: false, ended_at: new Date().toISOString() })
+        .eq("admin_id", authUser.id)
+        .eq("target_user_id", impersonationTarget.userId)
+        .eq("is_active", true);
+    }
+    setImpersonationTargetState(null);
+    sessionStorage.removeItem("impersonation_target");
+  };
+  const readOnlyPreview = !!impersonationTarget;
+
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, role, authUser, authRole, adminViewMode, impersonationTarget, readOnlyPreview, loading, signOut, refreshProfile, setAdminViewMode, startImpersonation, stopImpersonation }}>
       {children}
     </AuthContext.Provider>
   );

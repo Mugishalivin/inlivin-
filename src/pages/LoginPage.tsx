@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { toast } from "sonner";
 import { Eye, EyeOff, Mail, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
+  const { adminViewMode, authRole } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +32,13 @@ export default function LoginPage() {
             .select("role")
             .eq("user_id", session.user.id)
             .maybeSingle();
-          navigate(data?.role === "admin" ? "/admin" : "/dashboard", { replace: true });
+          if ((data?.role === "admin" || authRole === "admin") && !adminViewMode) {
+            navigate("/continue-as", { replace: true });
+          } else if (data?.role === "admin" || authRole === "admin") {
+            navigate(adminViewMode === "admin" ? "/admin/overview" : "/dashboard", { replace: true });
+          } else {
+            navigate("/dashboard", { replace: true });
+          }
           return;
         }
       } finally {
@@ -63,7 +71,8 @@ export default function LoginPage() {
           .select("role")
           .eq("user_id", user.id)
           .maybeSingle();
-        if (data?.role === "admin") target = "/admin";
+        if ((data?.role === "admin" || authRole === "admin") && !adminViewMode) target = "/continue-as";
+        else if (data?.role === "admin" || authRole === "admin") target = adminViewMode === "admin" ? "/admin/overview" : "/dashboard";
       }
       navigate(target, { replace: true });
     }

@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ReportDialog } from "@/components/ReportDialog";
 
 export default function EventDetailPage() {
   const { eventId } = useParams();
@@ -36,6 +37,7 @@ export default function EventDetailPage() {
   const [shareMessage, setShareMessage] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event-detail", eventId],
@@ -208,9 +210,12 @@ export default function EventDetailPage() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setShowEditModal(true)}><Edit size={14} className="mr-2" /> Edit</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => deleteEvent.mutate()} className="text-destructive"><Trash2 size={14} className="mr-2" /> Delete</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </DropdownMenuContent>
+                </DropdownMenu>
             )}
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setReportOpen(true)} title="Report">
+              <Flag size={14} />
+            </Button>
           </div>
         </div>
 
@@ -335,6 +340,16 @@ export default function EventDetailPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <ReportDialog
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          entityType="event"
+          entityId={eventId || ""}
+          reportedUserId={event.user_id}
+          entityTitle={event.title}
+          entityLabel="event"
+        />
       </motion.div>
     </div>
   );

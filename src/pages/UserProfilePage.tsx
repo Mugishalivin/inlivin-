@@ -12,6 +12,7 @@ import {
   User, MapPin, Globe, UserPlus, UserCheck, MessageCircle,
   FolderOpen, Heart, Calendar, ArrowLeft, Music, Image, Video, ExternalLink
 } from "lucide-react";
+import { ReportDialog } from "@/components/ReportDialog";
 
 const categoryIcons: Record<string, any> = { music: Music, visual: Image, video: Video, other: FolderOpen };
 
@@ -20,6 +21,7 @@ export default function UserProfilePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["user-profile", userId],
@@ -178,6 +180,9 @@ export default function UserProfilePage() {
                 <Button variant="outline" size="sm" onClick={() => navigate(`/messages?chatWith=${userId}`)}>
                   <MessageCircle size={14} className="mr-1" /> Message
                 </Button>
+                <Button variant="outline" size="sm" className="border-border bg-background hover:bg-secondary" onClick={() => setReportOpen(true)}>
+                  Report
+                </Button>
               </div>
             )}
             {isOwnProfile && (
@@ -214,6 +219,16 @@ export default function UserProfilePage() {
           <p className="text-sm text-muted-foreground">No public projects yet.</p>
         )}
       </motion.div>
+
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        entityType="user"
+        entityId={userId || ""}
+        reportedUserId={userId}
+        entityTitle={profile.display_name || profile.username || "User"}
+        entityLabel="user profile"
+      />
     </div>
   );
 }

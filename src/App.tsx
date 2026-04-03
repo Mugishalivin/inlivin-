@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +14,20 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
+import ContinueAsPage from "./pages/ContinueAsPage";
+import { AdminShell } from "@/components/admin/AdminShell";
+import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminContentPage from "./pages/admin/AdminContentPage";
+import AdminImpersonatePage from "./pages/admin/AdminImpersonatePage";
+import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
+import AdminAuditPage from "./pages/admin/AdminAuditPage";
+import AdminMonitoringPage from "./pages/admin/AdminMonitoringPage";
+import AdminOperationsPage from "./pages/admin/AdminOperationsPage";
+import AdminReportsPage from "./pages/admin/AdminReportsPage";
+import AdminSecurityPage from "./pages/admin/AdminSecurityPage";
+import AdminIntegrationsPage from "./pages/admin/AdminIntegrationsPage";
+import AdminWorkflowsPage from "./pages/admin/AdminWorkflowsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import MessagesPage from "./pages/MessagesPage";
@@ -27,13 +41,14 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import BookmarksPage from "./pages/BookmarksPage";
 import SettingsPage from "./pages/SettingsPage";
 import UserProfilePage from "./pages/UserProfilePage";
-import AdminPage from "./pages/AdminPage";
 import ContentPipelinePage from "./pages/ContentPipelinePage";
 import ContentDetailPage from "./pages/ContentDetailPage";
+import UpdatesPage from "./pages/UpdatesPage";
 import NotFound from "./pages/NotFound";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +68,32 @@ const endCallSession = async (sessionId: string) => {
   }
 };
 
+function AdminAwareDashboardRoute() {
+  const { role, authRole, adminViewMode } = useAuth();
+  if ((role === "admin" || authRole === "admin") && !adminViewMode) {
+    return <Navigate to="/continue-as" replace />;
+  }
+  if ((role === "admin" || authRole === "admin") && adminViewMode === "admin") {
+    return <Navigate to="/admin/overview" replace />;
+  }
+  return <DashboardPage />;
+}
+
+function AdminRouteGate() {
+  const { role, authRole, adminViewMode } = useAuth();
+  const isAdmin = role === "admin" || authRole === "admin";
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  if (isAdmin && !adminViewMode) {
+    return <Navigate to="/continue-as" replace />;
+  }
+  if (isAdmin && adminViewMode === "user") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Outlet />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -68,13 +109,45 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route
+                path="/continue-as"
+                element={
+                  <ProtectedRoute>
+                    <ContinueAsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminRouteGate />
+                  </ProtectedRoute>
+                }
+              >
+                <Route element={<AdminShell />}>
+                  <Route index element={<Navigate to="overview" replace />} />
+                  <Route path="overview" element={<AdminOverviewPage />} />
+                  <Route path="users" element={<AdminUsersPage />} />
+                  <Route path="impersonate" element={<AdminImpersonatePage />} />
+                  <Route path="content" element={<AdminContentPage />} />
+                  <Route path="reports" element={<AdminReportsPage />} />
+                  <Route path="analytics" element={<AdminAnalyticsPage />} />
+                  <Route path="audit" element={<AdminAuditPage />} />
+                  <Route path="monitoring" element={<AdminMonitoringPage />} />
+                  <Route path="operations" element={<AdminOperationsPage />} />
+                  <Route path="security" element={<AdminSecurityPage />} />
+                  <Route path="integrations" element={<AdminIntegrationsPage />} />
+                  <Route path="workflows" element={<AdminWorkflowsPage />} />
+                </Route>
+              </Route>
+              <Route
                 element={
                   <ProtectedRoute>
                     <AppLayout />
                   </ProtectedRoute>
                 }
               >
-                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/dashboard" element={<AdminAwareDashboardRoute />} />
                 <Route path="/feed" element={<FeedPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
@@ -88,8 +161,8 @@ const App = () => (
                 <Route path="/bookmarks" element={<BookmarksPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/profile/:userId" element={<UserProfilePage />} />
-                <Route path="/admin" element={<AdminPage />} />
                 <Route path="/studio" element={<ContentPipelinePage />} />
+                <Route path="/updates" element={<UpdatesPage />} />
                 <Route path="/content-pipeline" element={<Navigate to="/studio" replace />} />
                 <Route path="/content/:contentType/:contentId" element={<ContentDetailPage />} />
               </Route>
