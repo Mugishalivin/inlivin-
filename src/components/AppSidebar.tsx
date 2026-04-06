@@ -1,6 +1,7 @@
 import {
   Home, FolderOpen, MessageCircle, Compass, Settings, LogOut, User,
-  Bell, Globe, Calendar, BarChart3, Bookmark, Layers3, Users, Megaphone
+  Bell, Globe, Calendar, BarChart3, Bookmark, Layers3, Users, Megaphone,
+  LayoutDashboard, FileText, Workflow, Shield, Activity, Zap, Database, ArrowLeftRight
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink } from "@/components/NavLink";
@@ -51,6 +52,26 @@ const getSecondaryNav = (role: string | null, adminViewMode: string | null, impe
 
 const bottomNav = [
   { title: "Settings", url: "/settings", icon: Settings },
+];
+
+const adminReturnNav = [
+  { title: "Return to Admin", url: "/admin/overview", icon: Users },
+  { title: "Settings", url: "/settings", icon: Settings },
+];
+
+const adminNav = [
+  { title: "Overview", url: "/admin/overview", icon: LayoutDashboard },
+  { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Impersonate", url: "/admin/impersonate", icon: ArrowLeftRight },
+  { title: "Content", url: "/admin/content", icon: FileText },
+  { title: "Reports", url: "/admin/reports", icon: BarChart3 },
+  { title: "System", url: "/admin/analytics", icon: Database },
+  { title: "Monitoring", url: "/admin/monitoring", icon: Activity },
+  { title: "Operations", url: "/admin/operations", icon: Zap },
+  { title: "Security", url: "/admin/security", icon: Shield },
+  { title: "Workflows", url: "/admin/workflows", icon: Workflow },
+  { title: "Integrations", url: "/admin/integrations", icon: Layers3 },
+  { title: "Audit", url: "/admin/audit", icon: FileText },
 ];
 
 export function AppSidebar() {
@@ -155,9 +176,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <SidebarContent className="pt-4">
+      <SidebarContent className="pt-4 flex flex-col overflow-hidden">
         {/* Brand */}
-        <div className={`px-4 mb-6 ${collapsed ? "text-center" : ""}`}>
+        <div className={`px-4 mb-6 shrink-0 ${collapsed ? "text-center" : ""}`}>
           <a href="/dashboard" className="font-display text-xl font-extrabold text-sidebar-foreground">
             {collapsed ? (
               <span className="text-primary text-2xl">i.</span>
@@ -167,29 +188,36 @@ export function AppSidebar() {
           </a>
         </div>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/60">
-            {!collapsed && "Menu"}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>{renderNavItems(mainNav)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Scrollable Navigation Area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/60">
+              {!collapsed && "Menu"}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminViewMode === "admin" && !impersonationTarget ? renderNavItems(adminNav) : renderNavItems(mainNav)}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/60">
-            {!collapsed && "More"}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>{renderNavItems(getSecondaryNav(role, adminViewMode, impersonationTarget))}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+          {adminViewMode === "admin" && !impersonationTarget ? null : (
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/60">
+                {!collapsed && "More"}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>{renderNavItems(getSecondaryNav(role, adminViewMode, impersonationTarget))}</SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
 
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupContent>
-            <SidebarMenu>{renderNavItems(bottomNav)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+          <SidebarGroup className="mt-auto">
+            <SidebarGroupContent>
+              <SidebarMenu>{renderNavItems((role === 'admin' && adminViewMode === 'user') ? adminReturnNav : bottomNav)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </div>
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-0">

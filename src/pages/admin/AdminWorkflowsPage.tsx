@@ -56,7 +56,6 @@ export default function AdminWorkflowsPage() {
       entity_id: row.entity_id,
       state: row.state,
       updated_by: user.id,
-      notes: "Seeded from content inventory",
     }));
     const { error } = await adminDb.from("admin_workflow_states").upsert(payload, { onConflict: "entity_type,entity_id" });
     if (error) return toast.error(error.message);
@@ -76,11 +75,11 @@ export default function AdminWorkflowsPage() {
       <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <div>
-            <CardTitle className="flex items-center gap-2 text-white">
+            <CardTitle className="flex items-center gap-2 text-white text-lg">
               <Workflow className="h-5 w-5 text-cyan-300" />
               Workflow states
             </CardTitle>
-            <CardDescription className="text-slate-300">Move content from pending to review to shipped with a real table.</CardDescription>
+            <CardDescription className="text-slate-300 text-xs">Move content from pending to review to shipped with a real table.</CardDescription>
           </div>
           <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={seedWorkflowRows}>
             Seed board
@@ -99,32 +98,30 @@ export default function AdminWorkflowsPage() {
 
       <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
         <CardHeader>
-          <CardTitle className="text-white">Workflow table</CardTitle>
-          <CardDescription className="text-slate-300">Update state row by row or seed the board from live content.</CardDescription>
+          <CardTitle className="text-white text-lg">Workflow table</CardTitle>
+          <CardDescription className="text-slate-300 text-xs">Update state row by row or seed the board from live content.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow className="border-white/10 hover:bg-transparent">
-                <TableHead className="text-slate-300">Entity</TableHead>
-                <TableHead className="text-slate-300">State</TableHead>
-                <TableHead className="text-slate-300">Notes</TableHead>
-                <TableHead className="text-slate-300">Updated</TableHead>
-                <TableHead className="text-slate-300">Action</TableHead>
+                <TableHead className="text-slate-300 text-xs">Entity</TableHead>
+                <TableHead className="text-slate-300 text-xs">State</TableHead>
+                <TableHead className="text-slate-300 text-xs">Updated</TableHead>
+                <TableHead className="text-slate-300 text-xs">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(workflows as any[]).map((row) => (
                 <TableRow key={row.id} className="border-white/10">
-                  <TableCell className="text-white">{row.entity_type} / {row.entity_id}</TableCell>
+                  <TableCell className="text-white text-xs">{row.entity_type} / {row.entity_id}</TableCell>
                   <TableCell>
-                    <Badge className="border-white/10 bg-white/10 text-white">{row.state}</Badge>
+                    <Badge className="border-white/10 bg-white/10 text-white text-[10px]">{row.state}</Badge>
                   </TableCell>
-                  <TableCell className="text-slate-300">{row.notes || "n/a"}</TableCell>
-                  <TableCell className="text-slate-400">{new Date(row.updated_at).toLocaleString()}</TableCell>
+                  <TableCell className="text-slate-400 text-xs">{new Date(row.updated_at).toLocaleString()}</TableCell>
                   <TableCell>
                     <Select value={row.state} onValueChange={(value) => updateState(row.id, value)}>
-                      <SelectTrigger className="w-36 border-white/10 bg-white/5 text-white">
+                      <SelectTrigger className="w-28 h-8 border-white/10 bg-white/5 text-white text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -138,7 +135,7 @@ export default function AdminWorkflowsPage() {
               ))}
               {!workflows.length && (
                 <TableRow className="border-white/10">
-                  <TableCell colSpan={5} className="py-8 text-center text-slate-400">No workflow states yet. Seed the board to begin.</TableCell>
+                  <TableCell colSpan={4} className="py-8 text-center text-slate-400 text-xs">No workflow states yet. Seed the board to begin.</TableCell>
                 </TableRow>
               )}
             </TableBody>

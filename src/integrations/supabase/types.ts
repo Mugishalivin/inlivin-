@@ -83,6 +83,57 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_settings: {
+        Row: {
+          id: string
+          user_id: string
+          default_view: string
+          refresh_interval: number
+          compact_mode: boolean
+          show_empty_hints: boolean
+          confirm_delete: boolean
+          verbose_logging: boolean
+          always_show_icons: boolean
+          compact_sidebar: boolean
+          desktop_notifications: boolean
+          critical_alerts_only: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          default_view?: string
+          refresh_interval?: number
+          compact_mode?: boolean
+          show_empty_hints?: boolean
+          confirm_delete?: boolean
+          verbose_logging?: boolean
+          always_show_icons?: boolean
+          compact_sidebar?: boolean
+          desktop_notifications?: boolean
+          critical_alerts_only?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          default_view?: string
+          refresh_interval?: number
+          compact_mode?: boolean
+          show_empty_hints?: boolean
+          confirm_delete?: boolean
+          verbose_logging?: boolean
+          always_show_icons?: boolean
+          compact_sidebar?: boolean
+          desktop_notifications?: boolean
+          critical_alerts_only?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bookmarks: {
         Row: {
           created_at: string

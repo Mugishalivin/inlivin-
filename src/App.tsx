@@ -23,6 +23,12 @@ import AdminImpersonatePage from "./pages/admin/AdminImpersonatePage";
 import AdminMonitoringPage from "./pages/admin/AdminMonitoringPage";
 import AdminOperationsPage from "./pages/admin/AdminOperationsPage";
 import AdminReportsPage from "./pages/admin/AdminReportsPage";
+import AdminSecurityPage from "./pages/admin/AdminSecurityPage";
+import AdminIntegrationsPage from "./pages/admin/AdminIntegrationsPage";
+import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
+import AdminAuditPage from "./pages/admin/AdminAuditPage";
+import AdminWorkflowsPage from "./pages/admin/AdminWorkflowsPage";
+import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import MessagesPage from "./pages/MessagesPage";
@@ -128,11 +134,12 @@ const App = () => (
                   <Route path="reports" element={<AdminReportsPage />} />
                   <Route path="monitoring" element={<AdminMonitoringPage />} />
                   <Route path="operations" element={<AdminOperationsPage />} />
-                  <Route path="security" element={<Navigate to="/admin/overview" replace />} />
-                  <Route path="integrations" element={<Navigate to="/admin/overview" replace />} />
-                  <Route path="analytics" element={<Navigate to="/admin/overview" replace />} />
-                  <Route path="audit" element={<Navigate to="/admin/monitoring" replace />} />
-                  <Route path="workflows" element={<Navigate to="/admin/operations" replace />} />
+                  <Route path="security" element={<AdminSecurityPage />} />
+                  <Route path="integrations" element={<AdminIntegrationsPage />} />
+                  <Route path="analytics" element={<AdminAnalyticsPage />} />
+                  <Route path="audit" element={<AdminAuditPage />} />
+                  <Route path="workflows" element={<AdminWorkflowsPage />} />
+                  <Route path="settings" element={<AdminSettingsPage />} />
                 </Route>
               </Route>
               <Route

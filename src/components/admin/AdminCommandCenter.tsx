@@ -13,6 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { fetchAdminProfiles } from "@/lib/admin-profiles";
+import { ReportDialog } from "@/components/admin/ReportDialog";
+import type { ReportData } from "@/lib/report-generator";
 import { toast } from "sonner";
 import {
   ArrowDownAZ,
@@ -152,6 +154,7 @@ function buildSummary({
 export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
   const queryClient = useQueryClient();
   const adminDb = supabase as any;
+  const { user: authUser } = useAuth();
   const [prefs, setPrefs] = useState<AdminPreferences>(() => loadPrefs());
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("newest");
@@ -161,6 +164,39 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
   useEffect(() => {
     localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
   }, [prefs]);
+
+  // Mutation wrappers with cache invalidation
+  const handleMutationUpdate = async (table: string, id: string, data: Partial<any>) => {
+    try {
+      const { error } = await supabase.from(table).update(data).eq("id", id);
+      if (error) {
+        toast.error(`Failed to update: ${error.message}`);
+        return false;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success("Updated successfully");
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || "Update failed");
+      return false;
+    }
+  };
+
+  const handleMutationDelete = async (table: string, id: string) => {
+    try {
+      const { error } = await supabase.from(table).delete().eq("id", id);
+      if (error) {
+        toast.error(`Failed to delete: ${error.message}`);
+        return false;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success("Deleted successfully");
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || "Delete failed");
+      return false;
+    }
+  };
 
   const { data: announcements = [] } = useQuery({
     queryKey: ["admin", "announcements"],
@@ -463,6 +499,24 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
     ["Reset Layout", ArrowDownAZ, resetLayout],
   ] as const;
 
+  // Prepare report data for PDF export
+  const reportData: ReportData = {
+    reportType: "comprehensive",
+    timestamp: new Date(),
+    activeCount,
+    inactiveCount,
+    withMediaCount,
+    expiringSoonCount,
+    dau,
+    conversionRate,
+    avgSessionLength,
+    errorCount,
+    auditLogsCount: (auditLogs as any[]).length,
+    usersCount: users.length,
+    callSessionsCount: (callSessions as any[]).length,
+    totalContent: contentItems.length,
+  };
+
   if (mode === "users") return <UsersPanel users={users as any[]} isLoading={loadingUsers} />;
 
   return (
@@ -473,8 +527,8 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
             <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <div>
-                  <CardTitle className="text-white">Live Metrics</CardTitle>
-                  <CardDescription className="text-slate-300">A snapshot of the admin workspace right now.</CardDescription>
+                  <CardTitle className="text-white text-sm">Live Metrics</CardTitle>
+                  <CardDescription className="text-slate-300 text-xs">A snapshot of the admin workspace right now.</CardDescription>
                 </div>
                 <Badge className="border-white/10 bg-white/10 text-white">{filteredItems.length} visible</Badge>
               </CardHeader>
@@ -488,8 +542,8 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
             {!prefs.focusMode && (
               <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
                 <CardHeader>
-                  <CardTitle className="text-white">Activity Feed</CardTitle>
-                  <CardDescription className="text-slate-300">The last six admin actions and automation events.</CardDescription>
+                  <CardTitle className="text-white text-sm">Activity Feed</CardTitle>
+                  <CardDescription className="text-slate-300 text-xs">The last six admin actions and automation events.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {activity.length === 0 ? (
@@ -510,8 +564,8 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
           <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
             <CardHeader className="flex flex-row items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-white">Workspace Notes</CardTitle>
-                <CardDescription className="text-slate-300">These controls are persisted locally, so the page feels like a real operating console.</CardDescription>
+                <CardTitle className="text-white text-sm">Workspace Notes</CardTitle>
+                <CardDescription className="text-slate-300 text-xs">These controls are persisted locally, so the page feels like a real operating console.</CardDescription>
               </div>
               <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={generateBrief}>
                 <Wand2 className="h-4 w-4" />
@@ -528,8 +582,8 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
           <div className="grid gap-6 xl:grid-cols-3">
             <Card className="border-white/10 bg-white/6 backdrop-blur-xl xl:col-span-2">
               <CardHeader>
-                <CardTitle className="text-white">Visibility Dashboard</CardTitle>
-                <CardDescription className="text-slate-300">
+                <CardTitle className="text-white text-sm">Visibility Dashboard</CardTitle>
+                <CardDescription className="text-slate-300 text-xs">
                   Central metrics pulled from the live workspace and activity tables.
                 </CardDescription>
               </CardHeader>
@@ -543,8 +597,8 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
 
             <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
               <CardHeader>
-                <CardTitle className="text-white">Live Monitoring</CardTitle>
-                <CardDescription className="text-slate-300">Recent sessions and active operators.</CardDescription>
+                <CardTitle className="text-white text-sm">Live Monitoring</CardTitle>
+                <CardDescription className="text-slate-300 text-xs">Recent sessions and active operators.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {(callSessions as any[]).slice(0, 4).map((session) => (
@@ -563,8 +617,8 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
           <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
             <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
               <CardHeader>
-                <CardTitle className="text-white">Feature Flags & Controls</CardTitle>
-                <CardDescription className="text-slate-300">
+                <CardTitle className="text-white text-sm">Feature Flags & Controls</CardTitle>
+                <CardDescription className="text-slate-300 text-xs">
                   Release gradually, section by section.
                 </CardDescription>
               </CardHeader>
@@ -593,8 +647,8 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
 
             <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
               <CardHeader>
-                <CardTitle className="text-white">Audit Trail</CardTitle>
-                <CardDescription className="text-slate-300">
+                <CardTitle className="text-white text-sm">Audit Trail</CardTitle>
+                <CardDescription className="text-slate-300 text-xs">
                   Historical actions, who changed what, and the command history.
                 </CardDescription>
               </CardHeader>
@@ -622,12 +676,13 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
 
           <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
             <CardHeader>
-              <CardTitle className="text-white">Operational Console</CardTitle>
-              <CardDescription className="text-slate-300">
+              <CardTitle className="text-white text-sm">Operational Console</CardTitle>
+              <CardDescription className="text-slate-300 text-xs">
                 One-click maintenance, exports, and safety rails.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
+              <ReportDialog reportData={reportData} />
               <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={() => runMaintenanceTask("cache_clear")}>
                 Cache clear
               </Button>
@@ -652,8 +707,8 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
         <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
           <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <CardTitle className="text-white">Content Board</CardTitle>
-              <CardDescription className="text-slate-300">Review announcements, promotions, and ads from one merged board.</CardDescription>
+              <CardTitle className="text-white text-sm">Content Board</CardTitle>
+              <CardDescription className="text-slate-300 text-xs">Review announcements, promotions, and ads from one merged board.</CardDescription>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <Field label="Search">
@@ -710,12 +765,14 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
                     selected={selected}
                     creatorNameById={creatorNameById}
                     onToggleSelected={(item) => setSelected((current) => ({ ...current, [selectionKey(item)]: !current[selectionKey(item)] }))}
-                    onUpdateAnnouncement={(id, data) => mutationAnnouncement.update(id, data)}
-                    onDeleteAnnouncement={(id) => mutationAnnouncement.delete(id)}
-                    onUpdatePromotion={(id, data) => mutationPromotion.update(id, data)}
-                    onDeletePromotion={(id) => mutationPromotion.delete(id)}
-                    onUpdateAd={(id, data) => mutationAd.update(id, data)}
-                    onDeleteAd={(id) => mutationAd.delete(id)}
+                    onUpdateAnnouncement={(id, data) => {}}
+                    onDeleteAnnouncement={(id) => {}}
+                    onUpdatePromotion={(id, data) => {}}
+                    onDeletePromotion={(id) => {}}
+                    onUpdateAd={(id, data) => {}}
+                    onDeleteAd={(id) => {}}
+                    handleMutationUpdate={handleMutationUpdate}
+                    handleMutationDelete={handleMutationDelete}
                   />
                 ))
               ) : (
@@ -726,13 +783,15 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
                   selected={selected}
                   creatorNameById={creatorNameById}
                   onToggleSelected={(item) => setSelected((current) => ({ ...current, [selectionKey(item)]: !current[selectionKey(item)] }))}
-                  onUpdateAnnouncement={(id, data) => mutationAnnouncement.update(id, data)}
-                  onDeleteAnnouncement={(id) => mutationAnnouncement.delete(id)}
-                  onUpdatePromotion={(id, data) => mutationPromotion.update(id, data)}
-                  onDeletePromotion={(id) => mutationPromotion.delete(id)}
-                  onUpdateAd={(id, data) => mutationAd.update(id, data)}
-                  onDeleteAd={(id) => mutationAd.delete(id)}
+                  onUpdateAnnouncement={(id, data) => {}}
+                  onDeleteAnnouncement={(id) => {}}
+                  onUpdatePromotion={(id, data) => {}}
+                  onDeletePromotion={(id) => {}}
+                  onUpdateAd={(id, data) => {}}
+                  onDeleteAd={(id) => {}}
                   forceFlat
+                  handleMutationUpdate={handleMutationUpdate}
+                  handleMutationDelete={handleMutationDelete}
                 />
               )}
             </div>
@@ -839,6 +898,8 @@ function ContentSection({
   onUpdateAd,
   onDeleteAd,
   forceFlat = false,
+  handleMutationUpdate,
+  handleMutationDelete,
 }: {
   type: ContentType;
   items: ContentItem[];
@@ -853,6 +914,8 @@ function ContentSection({
   onUpdateAd: (id: string, data: Partial<any>) => void;
   onDeleteAd: (id: string) => void;
   forceFlat?: boolean;
+  handleMutationUpdate: (table: string, id: string, data: Partial<any>) => Promise<boolean>;
+  handleMutationDelete: (table: string, id: string) => Promise<boolean>;
 }) {
   const meta = typeMeta[type];
   const Icon = meta.icon;
@@ -901,6 +964,8 @@ function ContentSection({
               onDeletePromotion={onDeletePromotion}
               onUpdateAd={onUpdateAd}
               onDeleteAd={onDeleteAd}
+              handleMutationUpdate={handleMutationUpdate}
+              handleMutationDelete={handleMutationDelete}
             />
           ))}
         </div>
@@ -921,6 +986,8 @@ function ContentCard({
   onDeletePromotion,
   onUpdateAd,
   onDeleteAd,
+  handleMutationUpdate,
+  handleMutationDelete,
 }: {
   item: ContentItem;
   selected: boolean;
@@ -933,6 +1000,8 @@ function ContentCard({
   onDeletePromotion: (id: string) => void;
   onUpdateAd: (id: string, data: Partial<any>) => void;
   onDeleteAd: (id: string) => void;
+  handleMutationUpdate: (table: string, id: string, data: Partial<any>) => Promise<boolean>;
+  handleMutationDelete: (table: string, id: string) => Promise<boolean>;
 }) {
   const meta = typeMeta[item.type];
   const Icon = meta.icon;
@@ -984,13 +1053,16 @@ function ContentCard({
               variant="outline"
               size="sm"
               className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-              onClick={() =>
-                item.type === "announcement"
-                  ? onUpdateAnnouncement(item.id, { is_active: !item.is_active })
+              onClick={async () => {
+                const success = item.type === "announcement"
+                  ? await handleMutationUpdate("announcements", item.id, { is_active: !item.is_active })
                   : item.type === "promotion"
-                    ? onUpdatePromotion(item.id, { is_active: !item.is_active })
-                    : onUpdateAd(item.id, { is_active: !item.is_active })
-              }
+                    ? await handleMutationUpdate("promotions", item.id, { is_active: !item.is_active })
+                    : await handleMutationUpdate("ads", item.id, { is_active: !item.is_active });
+                if (success) {
+                  onUpdateAnnouncement(item.id, { is_active: !item.is_active });
+                }
+              }}
             >
               <RefreshCw className="h-4 w-4" />
               Toggle
@@ -999,7 +1071,19 @@ function ContentCard({
               variant="outline"
               size="sm"
               className="border-rose-400/20 bg-rose-400/10 text-rose-100 hover:bg-rose-400/15"
-              onClick={() => (item.type === "announcement" ? onDeleteAnnouncement(item.id) : item.type === "promotion" ? onDeletePromotion(item.id) : onDeleteAd(item.id))}
+              onClick={async () => {
+                if (!window.confirm("Delete this item?")) return;
+                const success = item.type === "announcement"
+                  ? await handleMutationDelete("announcements", item.id)
+                  : item.type === "promotion"
+                    ? await handleMutationDelete("promotions", item.id)
+                    : await handleMutationDelete("ads", item.id);
+                if (success) {
+                  if (item.type === "announcement") onDeleteAnnouncement(item.id);
+                  else if (item.type === "promotion") onDeletePromotion(item.id);
+                  else onDeleteAd(item.id);
+                }
+              }}
             >
               <Trash2 className="h-4 w-4" />
               Delete
@@ -1076,8 +1160,8 @@ function UsersPanel({ users, isLoading }: { users: any[]; isLoading: boolean }) 
   return (
     <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
       <CardHeader>
-        <CardTitle className="text-white">User Management</CardTitle>
-        <CardDescription className="text-slate-300">Manage roles and inspect user accounts from a cleaner, higher-contrast panel.</CardDescription>
+        <CardTitle className="text-white text-sm">User Management</CardTitle>
+        <CardDescription className="text-slate-300 text-xs">Manage roles and inspect user accounts from a cleaner, higher-contrast panel.</CardDescription>
         {readOnlyPreview && <Badge className="mt-2 w-fit border-border bg-secondary text-foreground">Read-only preview</Badge>}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -1153,33 +1237,81 @@ function UsersPanel({ users, isLoading }: { users: any[]; isLoading: boolean }) 
 
 const mutationAnnouncement = {
   update: async (id: string, data: Partial<any>) => {
-    const { error } = await supabase.from("announcements").update(data).eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from("announcements").update(data).eq("id", id);
+      if (error) {
+        toast.error("Failed to update announcement: " + error.message);
+        throw error;
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Update failed");
+      throw err;
+    }
   },
   delete: async (id: string) => {
-    const { error } = await supabase.from("announcements").delete().eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from("announcements").delete().eq("id", id);
+      if (error) {
+        toast.error("Failed to delete announcement: " + error.message);
+        throw error;
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Delete failed");
+      throw err;
+    }
   },
 };
 
 const mutationPromotion = {
   update: async (id: string, data: Partial<any>) => {
-    const { error } = await supabase.from("promotions").update(data).eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from("promotions").update(data).eq("id", id);
+      if (error) {
+        toast.error("Failed to update promotion: " + error.message);
+        throw error;
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Update failed");
+      throw err;
+    }
   },
   delete: async (id: string) => {
-    const { error } = await supabase.from("promotions").delete().eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from("promotions").delete().eq("id", id);
+      if (error) {
+        toast.error("Failed to delete promotion: " + error.message);
+        throw error;
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Delete failed");
+      throw err;
+    }
   },
 };
 
 const mutationAd = {
   update: async (id: string, data: Partial<any>) => {
-    const { error } = await supabase.from("ads").update(data).eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from("ads").update(data).eq("id", id);
+      if (error) {
+        toast.error("Failed to update ad: " + error.message);
+        throw error;
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Update failed");
+      throw err;
+    }
   },
   delete: async (id: string) => {
-    const { error } = await supabase.from("ads").delete().eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from("ads").delete().eq("id", id);
+      if (error) {
+        toast.error("Failed to delete ad: " + error.message);
+        throw error;
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Delete failed");
+      throw err;
+    }
   },
 };
