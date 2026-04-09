@@ -44,6 +44,13 @@ export default function CreateEventPage() {
   const [tagInput, setTagInput] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [socialLinks, setSocialLinks] = useState({ instagram: "", twitter: "", youtube: "", tiktok: "", website: "" });
+  const [mediaItems, setMediaItems] = useState<Array<{ file: File; preview: string; type: 'image' | 'video' }>>([]);
+  const [infoLink, setInfoLink] = useState("");
+  const [eventRequirements, setEventRequirements] = useState("");
+  const [isFree, setIsFree] = useState(true);
+  const [eventPrice, setEventPrice] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const [showAttendees, setShowAttendees] = useState(true);
 
   if (!user) {
     return (
@@ -72,6 +79,37 @@ export default function CreateEventPage() {
     const reader = new FileReader();
     reader.onload = (e) => setCoverPreview(e.target?.result as string);
     reader.readAsDataURL(file);
+  };
+
+  const handleMediaAdd = (file: File | null) => {
+    if (!file) return;
+    if (mediaItems.length >= 10) {
+      toast.error("Maximum 10 media items");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Media file must be less than 50MB");
+      return;
+    }
+    const isVideo = file.type.startsWith("video");
+    const isImage = file.type.startsWith("image");
+    if (!isVideo && !isImage) {
+      toast.error("Only images and videos are allowed");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setMediaItems((prev) => [...prev, {
+        file,
+        preview: e.target?.result as string,
+        type: isVideo ? 'video' : 'image'
+      }]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeMedia = (index: number) => {
+    setMediaItems((prev) => prev.filter((_, i) => i !== index));
   };
 
   const addTag = (val: string) => {
@@ -129,7 +167,7 @@ export default function CreateEventPage() {
         cover_url = data.publicUrl;
       }
 
-      const { error } = await supabase.from("events").insert({
+      const { data: eventData, error: eventError } = await supabase.from("events").insert({
         user_id: user.id,
         title: title.trim(),
         description: description.trim() || null,
@@ -138,9 +176,35 @@ export default function CreateEventPage() {
         max_attendees: maxAttendees ? parseInt(maxAttendees, 10) : null,
         cover_url,
         is_public: isPublic,
-      });
+        is_virtual: isVirtual,
+        requirements_info: eventRequirements.trim() || null,
+        is_free: isFree,
+        price: !isFree && eventPrice ? parseFloat(eventPrice) : null,
+        currency,
+        show_attendees: showAttendees,
+      }).select().single();
 
-      if (error) throw error;
+      if (eventError) throw eventError;
+
+      // Upload media files
+      if (mediaItems.length > 0 && eventData) {
+        for (let i = 0; i < mediaItems.length; i++) {
+          const media = mediaItems[i];
+          const ext = media.file.name.split(".").pop()?.toLowerCase() || (media.type === 'video' ? 'mp4' : 'jpg');
+          const path = `event-media/${eventData.id}/${Date.now()}_${i}.${ext}`;
+          const { error: uploadError } = await supabase.storage.from("project-files").upload(path, media.file, { upsert: true });
+          if (uploadError) throw uploadError;
+          const { data } = supabase.storage.from("project-files").getPublicUrl(path);
+          
+          await supabase.from("event_media").insert({
+            event_id: eventData.id,
+            user_id: user.id,
+            media_type: media.type,
+            media_url: data.publicUrl,
+            display_order: i,
+          });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
@@ -404,6 +468,149 @@ export default function CreateEventPage() {
                         <Input value={socialLinks.instagram} onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })} placeholder="Instagram" className="h-11" />
                         <Input value={socialLinks.twitter} onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })} placeholder="X / Twitter" className="h-11" />
                       </div>
+                    </div>
+
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">More information link</Label>
+                      <Input value={infoLink} onChange={(e) => setInfoLink(e.target.value)} placeholder="Link for more info or registration details" type="url" className="h-11" />
+                    </div>
+
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">RSVP Requirements (optional)</Label>
+                      <Textarea 
+                        value={eventRequirements} 
+                        onChange={(e) => setEventRequirements(e.target.value)} 
+                        placeholder="E.g., Bring ID, RSVP by date, Portfolio submission, etc. Attendees will fill this in when confirming their attendance." 
+                        rows={3} 
+                        className="text-sm resize-none"
+                      />
+                    </div>
+
+                    {/* Pricing Section */}
+                    <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-sm mb-0.5">Ticket Price</h4>
+                          <p className="text-xs text-muted-foreground">Make this a free or paid event</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <label className="flex items-center gap-2 flex-1 p-3 rounded-lg border border-border/50 cursor-pointer" style={{ background: isFree ? 'var(--accent)' : 'transparent', opacity: isFree ? 1 : 0.6 }}>
+                          <input 
+                            type="radio" 
+                            checked={isFree} 
+                            onChange={() => setIsFree(true)} 
+                            className="rounded-full"
+                          />
+                          <span className="text-sm font-medium">Free</span>
+                        </label>
+                        <label className="flex items-center gap-2 flex-1 p-3 rounded-lg border border-border/50 cursor-pointer" style={{ background: !isFree ? 'var(--accent)' : 'transparent', opacity: !isFree ? 1 : 0.6 }}>
+                          <input 
+                            type="radio" 
+                            checked={!isFree} 
+                            onChange={() => setIsFree(false)} 
+                            className="rounded-full"
+                          />
+                          <span className="text-sm font-medium">Paid</span>
+                        </label>
+                      </div>
+
+                      {!isFree && (
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <Label className="text-xs font-semibold block mb-2">Price</Label>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              min="0" 
+                              value={eventPrice} 
+                              onChange={(e) => setEventPrice(e.target.value)} 
+                              placeholder="0.00" 
+                              className="h-10 text-sm"
+                            />
+                          </div>
+                          <div className="w-32">
+                            <Label className="text-xs font-semibold block mb-2">Currency</Label>
+                            <Select value={currency} onValueChange={setCurrency}>
+                              <SelectTrigger className="h-10">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="USD">USD</SelectItem>
+                                <SelectItem value="EUR">EUR</SelectItem>
+                                <SelectItem value="GBP">GBP</SelectItem>
+                                <SelectItem value="CAD">CAD</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Visibility Settings */}
+                    <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-3">
+                      <h4 className="font-semibold text-sm">Visibility</h4>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={showAttendees} 
+                          onChange={(e) => setShowAttendees(e.target.checked)} 
+                          className="rounded"
+                        />
+                        <span className="text-sm">Show attendee list to guests</span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">Event media (images & videos)</Label>
+                      <p className="text-xs text-muted-foreground mb-3">Add images and videos to showcase your event and attract attendees</p>
+                      
+                      {mediaItems.length > 0 && (
+                        <div className="space-y-3 mb-4">
+                          {mediaItems.map((media, idx) => (
+                            <div key={idx} className="relative overflow-hidden rounded-lg border border-border/50 bg-secondary/30">
+                              {media.type === 'video' ? (
+                                <video src={media.preview} className="h-32 w-full object-cover" />
+                              ) : (
+                                <img src={media.preview} alt="Media" className="h-32 w-full object-cover" />
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeMedia(idx)}
+                                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                              >
+                                <X size={14} />
+                              </button>
+                              <div className="absolute bottom-1 left-1 px-2 py-1 rounded bg-black/60 text-xs text-white capitalize">
+                                {media.type}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <label className="flex items-center justify-center gap-2 h-32 cursor-pointer rounded-lg border border-dashed border-border/70 bg-gradient-to-br from-accent/5 to-cyan-500/5 transition-colors hover:border-accent/40 hover:bg-accent/10">
+                        <div className="text-center">
+                          <ImageIcon size={24} className="mx-auto mb-2 text-accent" />
+                          <p className="text-xs font-medium">Drop images/videos here</p>
+                          <p className="text-[10px] text-muted-foreground mt-1">PNG, JPG, MP4, etc. up to 50MB each</p>
+                        </div>
+                        <input 
+                          type="file" 
+                          accept="image/*,video/*" 
+                          multiple
+                          className="hidden" 
+                          onChange={(e) => {
+                            if (e.target.files) {
+                              Array.from(e.target.files).forEach(f => handleMediaAdd(f));
+                            }
+                          }} 
+                        />
+                      </label>
+                      {mediaItems.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-2">{mediaItems.length} media items added</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

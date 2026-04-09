@@ -35,6 +35,8 @@ import {
   Sun,
   Upload,
   User,
+  Search,
+  X,
 } from "lucide-react";
 
 type UserSettings = Database["public"]["Tables"]["user_settings"]["Row"];
@@ -167,6 +169,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState<(typeof settingsSections)[number]["value"]>("identity");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
@@ -245,6 +248,25 @@ export default function SettingsPage() {
     },
     enabled: !!user,
   });
+
+  // Filter settings sections based on search query
+  const filteredSections = useMemo(() => {
+    if (!searchQuery.trim()) return settingsSections;
+    const query = searchQuery.toLowerCase();
+    return settingsSections.filter(
+      (section) =>
+        section.title.toLowerCase().includes(query) ||
+        section.description.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
+
+  // Ensure activeSection is always in filteredSections
+  useEffect(() => {
+    const isCurrentSectionFiltered = filteredSections.some((section) => section.value === activeSection);
+    if (!isCurrentSectionFiltered && filteredSections.length > 0) {
+      setActiveSection(filteredSections[0].value);
+    }
+  }, [filteredSections, activeSection]);
 
   useEffect(() => {
     if (!profile) return;
@@ -700,22 +722,50 @@ export default function SettingsPage() {
                   Pick a section to tune. Every control is saved to the database.
                 </p>
               </CardHeader>
-              <CardContent className="p-2">
-                <TabsList className="flex h-auto w-full flex-wrap gap-2 bg-transparent p-0">
-                  {settingsSections.map((section) => (
-                    <TabsTrigger
-                      key={section.value}
-                      value={section.value}
-                      className="rounded-full border border-border/60 bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors data-[state=active]:border-primary/40 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+              <CardContent className="space-y-3 p-4">
+                {/* Search Input */}
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search settings..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-8 h-10 text-sm"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {section.title}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filtered Sections List */}
+                {filteredSections.length > 0 ? (
+                  <TabsList className="flex h-auto w-full flex-wrap gap-2 bg-transparent p-0">
+                    {filteredSections.map((section) => (
+                      <TabsTrigger
+                        key={section.value}
+                        value={section.value}
+                        className="rounded-full border border-border/60 bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors data-[state=active]:border-primary/40 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                      >
+                        {section.title}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-muted-foreground">No settings found matching "{searchQuery}"</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             <div className="space-y-6">
+              {filteredSections.some(s => s.value === 'identity') && (
               <TabsContent value="identity" className="space-y-6">
                 <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
                   <Card className="border-border/60">
@@ -836,7 +886,9 @@ export default function SettingsPage() {
               </Card>
                 </div>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'preferences') && (
               <TabsContent value="preferences" className="space-y-6">
                 <div className="grid gap-6 lg:grid-cols-2">
               <Card className="border-border/60">
@@ -952,7 +1004,9 @@ export default function SettingsPage() {
               </Card>
                 </div>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'data') && (
               <TabsContent value="data" className="space-y-6">
                 <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
               <Card className="border-border/60">
@@ -1020,7 +1074,9 @@ export default function SettingsPage() {
               </Card>
                 </div>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'appearance') && (
               <TabsContent value="appearance" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
               <Card className="border-border/60">
@@ -1104,7 +1160,9 @@ export default function SettingsPage() {
               </Card>
             </div>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'privacy') && (
               <TabsContent value="privacy" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
               <Card className="border-border/60">
@@ -1136,7 +1194,9 @@ export default function SettingsPage() {
               </Card>
             </div>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'notifications') && (
               <TabsContent value="notifications" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Notifications</CardTitle></CardHeader>
@@ -1160,7 +1220,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'messages') && (
               <TabsContent value="messages" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Messages</CardTitle></CardHeader>
@@ -1171,7 +1233,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'media') && (
               <TabsContent value="media" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Media</CardTitle></CardHeader>
@@ -1184,7 +1248,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'discovery') && (
               <TabsContent value="discovery" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Discovery</CardTitle></CardHeader>
@@ -1196,7 +1262,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'accessibility') && (
               <TabsContent value="accessibility" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Accessibility</CardTitle></CardHeader>
@@ -1208,7 +1276,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'security') && (
               <TabsContent value="security" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Security</CardTitle></CardHeader>
@@ -1231,7 +1301,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'integrations') && (
               <TabsContent value="integrations" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Integrations</CardTitle></CardHeader>
@@ -1244,7 +1316,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'activity') && (
               <TabsContent value="activity" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Activity</CardTitle></CardHeader>
@@ -1255,7 +1329,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'feed') && (
               <TabsContent value="feed" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Feed</CardTitle></CardHeader>
@@ -1277,7 +1353,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'profile') && (
               <TabsContent value="profile" className="space-y-6">
             <Card className="border-border/60">
               <CardHeader className="pb-3"><CardTitle className="font-display text-base">Profile</CardTitle></CardHeader>
@@ -1299,7 +1377,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
               </TabsContent>
+              )}
 
+              {filteredSections.some(s => s.value === 'advanced') && (
               <TabsContent value="advanced" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
               <Card className="border-border/60">
@@ -1333,6 +1413,7 @@ export default function SettingsPage() {
               </Card>
             </div>
               </TabsContent>
+              )}
 
             </div>
           </div>

@@ -88,7 +88,7 @@ export default function UserProfilePage() {
   });
 
   const isOwnProfile = user?.id === userId;
-  const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at) : null;
+  const lastSeen = (profile as any)?.last_seen_at ? new Date((profile as any).last_seen_at) : null;
   const isActiveNow = !!lastSeen && Date.now() - lastSeen.getTime() <= 2 * 60 * 1000;
   const lastActiveLabel = lastSeen ? `Last active ${formatDistanceToNow(lastSeen, { addSuffix: true })}` : null;
 

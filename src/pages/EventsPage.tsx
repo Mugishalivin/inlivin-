@@ -4,19 +4,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { EventCard } from "@/components/EventCard";
 import { LoadingCardGrid } from "@/components/LoadingSkeletons";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  Calendar, Plus
+  Calendar, Plus, Search, Filter, X
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function EventsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all"); // all, virtual, inperson
+  const [dateFilter, setDateFilter] = useState("upcoming"); // upcoming, past, all
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["events"],
@@ -25,8 +37,9 @@ export default function EventsPage() {
         .from("events")
         .select("*")
         .or(`is_public.eq.true,user_id.eq.${user!.id}`)
+        .eq("is_cancelled", false)
         .order("event_date", { ascending: true })
-        .limit(30);
+        .limit(100);
       return data ?? [];
     },
     enabled: !!user,
@@ -84,75 +97,143 @@ export default function EventsPage() {
   const upcomingEvents = events.filter(e => new Date(e.event_date) >= new Date());
   const pastEvents = events.filter(e => new Date(e.event_date) < new Date());
 
+  // Apply filters
+  let filteredEvents = events;
+  
+  if (dateFilter === "upcoming") {
+    filteredEvents = upcomingEvents;
+  } else if (dateFilter === "past") {
+    filteredEvents = pastEvents;
+  }
+
+  if (categoryFilter !== "all") {
+    filteredEvents = filteredEvents.filter(e => e.category === categoryFilter);
+  }
+
+  if (typeFilter === "virtual") {
+    filteredEvents = filteredEvents.filter(e => e.is_virtual);
+  } else if (typeFilter === "inperson") {
+    filteredEvents = filteredEvents.filter(e => !e.is_virtual);
+  }
+
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    filteredEvents = filteredEvents.filter(e => 
+      e.title.toLowerCase().includes(query) || 
+      e.description?.toLowerCase().includes(query) ||
+      e.location?.toLowerCase().includes(query)
+    );
+  }
+
   return (
-    <div className="p-6 md:p-8 max-w-5xl">
+    <div className="p-6 md:p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-extrabold text-foreground">
             Events<span className="text-primary">.</span>
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">Upcoming events from the community.</p>
+          <p className="text-muted-foreground mt-1 text-sm">Discover and join events from the community.</p>
         </div>
         <Button
           variant="hero"
           size="sm"
           onClick={() => navigate("/create-event")}
         >
-          <Plus size={16} /> Create Event
+          <Plus size={14} className="mr-1" /> Create Event
         </Button>
       </div>
 
+      {/* Search & Filters */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 space-y-4">
+        <div className="flex gap-3 flex-wrap items-center">
+          <div className="relative flex-1 min-w-64">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search events by title, location, or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="upcoming">Upcoming</SelectItem>
+              <SelectItem value="past">Past</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="virtual">Virtual</SelectItem>
+              <SelectItem value="inperson">In-Person</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="art">Art</SelectItem>
+              <SelectItem value="music">Music</SelectItem>
+              <SelectItem value="workshop">Workshop</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(searchQuery || categoryFilter !== "all" || typeFilter !== "all" || dateFilter !== "upcoming") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchQuery("");
+                setCategoryFilter("all");
+                setTypeFilter("all");
+                setDateFilter("upcoming");
+              }}
+              className="text-xs"
+            >
+              <X size={12} className="mr-1" /> Clear Filters
+            </Button>
+          )}
+        </div>
+      </motion.div>
+
       {isLoading ? (
         <LoadingCardGrid count={9} />
-      ) : events.length > 0 ? (
-        <div className="space-y-10">
-          {/* Upcoming Events - Pinterest Grid */}
-          {upcomingEvents.length > 0 && (
-            <div>
-              <h2 className="font-display font-bold text-xl mb-6 text-foreground">✨ Upcoming Events</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 auto-rows-max">
-                {upcomingEvents.map((event, idx) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    isOwner={event.user_id === user!.id}
-                    isJoined={myRsvps.includes(event.id)}
-                    attendeeCount={rsvpCounts[event.id] ?? 0}
-                    creatorName={eventCreators[event.user_id] || "Artist"}
-                    onEdit={() => {}}
-                    onDelete={(id) => deleteEvent.mutate(id)}
-                    index={idx}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Past Events - Compact View */}
-          {pastEvents.length > 0 && (
-            <div>
-              <h2 className="font-display font-bold text-xl mb-6 text-muted-foreground">📚 Past Events</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 opacity-60">
-                {pastEvents.slice(0, 9).map((event) => (
-                  <Card key={event.id} className="border-border/50 hover:border-primary/10 transition-all cursor-pointer h-24" onClick={() => navigate(`/events/${event.id}`)}>
-                    <CardContent className="p-4 flex items-center gap-3 h-full">
-                      {event.cover_url && (
-                        <div className="w-16 h-16 rounded-lg bg-secondary overflow-hidden shrink-0">
-                          <img src={event.cover_url} alt="" className="w-full h-full object-cover" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium line-clamp-2">{event.title}</p>
-                        <p className="text-[11px] text-muted-foreground mt-1">
-                          {new Date(event.event_date).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
+      ) : filteredEvents.length > 0 ? (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display font-bold text-lg text-foreground">
+              {dateFilter === "upcoming" ? "✨ Upcoming Events" : dateFilter === "past" ? "📚 Past Events" : "All Events"}
+            </h2>
+            <span className="text-xs text-muted-foreground">{filteredEvents.length} result{filteredEvents.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 auto-rows-max">
+            {filteredEvents.map((event, idx) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                isOwner={event.user_id === user!.id}
+                isJoined={myRsvps.includes(event.id)}
+                attendeeCount={rsvpCounts[event.id] ?? 0}
+                creatorName={eventCreators[event.user_id] || "Artist"}
+                onEdit={() => {}}
+                onDelete={(id) => deleteEvent.mutate(id)}
+                index={idx}
+              />
+            ))}
+          </div>
         </div>
       ) : (
         <Card className="border-border/50 border-dashed">
@@ -160,8 +241,10 @@ export default function EventsPage() {
             <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
               <Calendar size={28} className="text-accent" />
             </div>
-            <h3 className="font-display font-bold text-lg text-foreground mb-1">No upcoming events</h3>
-            <p className="text-sm text-muted-foreground mb-4 max-w-sm">Create an event to bring the creative community together.</p>
+            <h3 className="font-display font-bold text-lg text-foreground mb-1">No events found</h3>
+            <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+              {searchQuery ? "Try adjusting your search or filters" : "Create an event to bring the creative community together."}
+            </p>
             <Button variant="hero" size="sm" onClick={() => navigate("/create-event")}><Plus size={16} /> Create Event</Button>
           </CardContent>
         </Card>

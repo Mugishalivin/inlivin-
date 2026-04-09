@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { ArrowRightLeft, Database, FileClock, LayoutDashboard, Menu, MonitorUp, Moon, PanelLeftClose, PanelLeftOpen, Rocket, SunMedium, Users2, Shield, Zap, Workflow, BarChart3, FileText, Activity, Settings } from "lucide-react";
+import { ArrowRightLeft, Database, FileClock, LayoutDashboard, Menu, MonitorUp, Moon, PanelLeftClose, PanelLeftOpen, Rocket, SunMedium, Users2, Shield, Zap, Workflow, BarChart3, FileText, Activity, Settings, Medal } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +41,7 @@ const adminSections = [
       { title: "Security", url: "/admin/security", icon: Shield },
       { title: "Integrations", url: "/admin/integrations", icon: Zap },
       { title: "Workflows", url: "/admin/workflows", icon: Workflow },
+      { title: "Badges", url: "/admin/badges", icon: Medal },
       { title: "Settings", url: "/admin/settings", icon: Settings },
     ],
   },

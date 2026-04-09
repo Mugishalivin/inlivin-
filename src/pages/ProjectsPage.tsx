@@ -23,8 +23,9 @@ import { motion } from "framer-motion";
 import {
   FolderOpen, Plus, Music, Image, Video, MoreVertical, User,
   Edit, Trash2, Eye, Globe, Lock, Heart, MessageCircle, Upload,
-  UserPlus, Users, Search, X, Shield, Pen, EyeIcon
+  UserPlus, Users, Search, X, Shield, Pen, EyeIcon, Checkbox
 } from "lucide-react";
+import { Checkbox as CheckboxUI } from "@/components/ui/checkbox";
 
 const categories = [
   { value: "music", label: "Music", icon: Music },
@@ -51,6 +52,8 @@ export default function ProjectsPage() {
   const [category, setCategory] = useState("music");
   const [tags, setTags] = useState("");
   const [isPublic, setIsPublic] = useState(true);
+  const [isProtected, setIsProtected] = useState(false);
+  const [password, setPassword] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [inviteSearch, setInviteSearch] = useState("");
   const [inviteRole, setInviteRole] = useState("viewer");
@@ -147,7 +150,7 @@ export default function ProjectsPage() {
   });
 
   const resetForm = () => {
-    setTitle(""); setDescription(""); setCategory("music"); setTags(""); setIsPublic(true); setCoverFile(null); setEditingProject(null);
+    setTitle(""); setDescription(""); setCategory("music"); setTags(""); setIsPublic(true); setIsProtected(false); setPassword(""); setCoverFile(null); setEditingProject(null);
   };
 
   const openEdit = (project: any) => {
@@ -179,6 +182,8 @@ export default function ProjectsPage() {
         is_public: isPublic,
         cover_url,
         user_id: user!.id,
+        is_protected: isProtected,
+        password_hash: isProtected && password ? password : null, // In production, use bcrypt
       };
       if (editingProject) {
         const { error } = await supabase.from("projects").update(payload).eq("id", editingProject.id);
@@ -337,6 +342,15 @@ export default function ProjectsPage() {
                 <div><Label className="text-xs font-medium">Visibility</Label><Select value={isPublic ? "public" : "private"} onValueChange={v => setIsPublic(v === "public")}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="public">Public</SelectItem><SelectItem value="private">Private</SelectItem></SelectContent></Select></div>
               </div>
               <div><Label className="text-xs font-medium">Tags</Label><Input value={tags} onChange={e => setTags(e.target.value)} className="mt-1.5" placeholder="beats, lo-fi, chill (comma separated)" /></div>
+              <div className="border rounded-lg p-3 bg-secondary/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <input type="checkbox" id="protect" checked={isProtected} onChange={e => setIsProtected(e.target.checked)} className="w-4 h-4" />
+                  <Label htmlFor="protect" className="text-xs font-medium cursor-pointer"><Lock className="w-3 h-3 inline mr-1" />Password Protect This Project</Label>
+                </div>
+                {isProtected && (
+                  <Input value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5" placeholder="Set password" type="password" />
+                )}
+              </div>
               <div>
                 <Label className="text-xs font-medium">Cover Image</Label>
                 <div className="mt-1.5">

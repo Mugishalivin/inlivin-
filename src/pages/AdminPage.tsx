@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AdminCommandCenter } from "@/components/admin/AdminCommandCenter";
+import { Settings } from "lucide-react";
 
 export default function AdminPage() {
   const { user, role } = useAuth();
@@ -35,5 +36,19 @@ export default function AdminPage() {
     );
   }
 
-  return <AdminCommandCenter />;
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Admin Control Center</h1>
+          <p className="text-muted-foreground">Manage content, users, and system settings</p>
+        </div>
+        <Button onClick={() => navigate("/admin/settings")} className="gap-2">
+          <Settings className="h-4 w-4" />
+          System Settings
+        </Button>
+      </div>
+      <AdminCommandCenter />
+    </div>
+  );
 }

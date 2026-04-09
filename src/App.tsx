@@ -28,7 +28,8 @@ import AdminIntegrationsPage from "./pages/admin/AdminIntegrationsPage";
 import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
 import AdminAuditPage from "./pages/admin/AdminAuditPage";
 import AdminWorkflowsPage from "./pages/admin/AdminWorkflowsPage";
-import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import PowerfulAdminSettingsPage from "./pages/admin/PowerfulAdminSettingsPage";
+import { AdminBadgesPage } from "./pages/admin/AdminBadgesPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import MessagesPage from "./pages/MessagesPage";
@@ -45,6 +46,10 @@ import UserProfilePage from "./pages/UserProfilePage";
 import ContentPipelinePage from "./pages/ContentPipelinePage";
 import ContentDetailPage from "./pages/ContentDetailPage";
 import UpdatesPage from "./pages/UpdatesPage";
+import CreatorMarketplacePage from "./pages/CreatorMarketplacePage";
+import MarketplacePage from "./pages/MarketplacePage";
+import MarketplaceDetailPage from "./pages/MarketplaceDetailPage";
+import CollaborationNetworkPage from "./pages/CollaborationNetworkPage";
 import NotFound from "./pages/NotFound";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -139,7 +144,8 @@ const App = () => (
                   <Route path="analytics" element={<AdminAnalyticsPage />} />
                   <Route path="audit" element={<AdminAuditPage />} />
                   <Route path="workflows" element={<AdminWorkflowsPage />} />
-                  <Route path="settings" element={<AdminSettingsPage />} />
+                  <Route path="badges" element={<AdminBadgesPage />} />
+                  <Route path="settings" element={<PowerfulAdminSettingsPage />} />
                 </Route>
               </Route>
               <Route
@@ -165,6 +171,11 @@ const App = () => (
                 <Route path="/profile/:userId" element={<UserProfilePage />} />
                 <Route path="/studio" element={<ContentPipelinePage />} />
                 <Route path="/updates" element={<UpdatesPage />} />
+                <Route path="/marketplace" element={<MarketplacePage />} />
+                <Route path="/marketplace/:itemId" element={<MarketplaceDetailPage />} />
+                <Route path="/selling/:itemId" element={<MarketplaceDetailPage />} />
+                <Route path="/creator-marketplace" element={<CreatorMarketplacePage />} />
+                <Route path="/network" element={<CollaborationNetworkPage />} />
                 <Route path="/content-pipeline" element={<Navigate to="/studio" replace />} />
                 <Route path="/content/:contentType/:contentId" element={<ContentDetailPage />} />
               </Route>

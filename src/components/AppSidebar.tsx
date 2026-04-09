@@ -1,7 +1,8 @@
 import {
   Home, FolderOpen, MessageCircle, Compass, Settings, LogOut, User,
   Bell, Globe, Calendar, BarChart3, Bookmark, Layers3, Users, Megaphone,
-  LayoutDashboard, FileText, Workflow, Shield, Activity, Zap, Database, ArrowLeftRight
+  LayoutDashboard, FileText, Workflow, Shield, Activity, Zap, Database, ArrowLeftRight,
+  ShoppingCart, TrendingUp, Radio, Sparkles
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink } from "@/components/NavLink";
@@ -9,6 +10,7 @@ import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { getAdminBadgeMetrics, getBadgeCountForSection } from "@/lib/admin-badge-metrics";
 import {
   Sidebar,
   SidebarContent,
@@ -40,6 +42,8 @@ const secondaryNav = [
   { title: "Notifications", url: "/notifications", icon: Bell },
   { title: "Bookmarks", url: "/bookmarks", icon: Bookmark },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Collaboration", url: "/network", icon: Users },
+  { title: "Marketplace", url: "/marketplace", icon: ShoppingCart },
 ];
 
 const getSecondaryNav = (role: string | null, adminViewMode: string | null, impersonationTarget: { userId: string; label: string } | null) => {
@@ -74,15 +78,21 @@ const adminNav = [
   { title: "Audit", url: "/admin/audit", icon: FileText },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, role, adminViewMode, impersonationTarget, signOut } = useAuth();
+  const { user, profile, role, adminViewMode, impersonationTarget, signOut, setAdminViewMode } = useAuth();
   const [updatesSeenVersion, setUpdatesSeenVersion] = useState(0);
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleReturnToAdmin = () => {
+    setAdminViewMode("admin");
+    navigate("/admin/overview");
+    onItemSelected?.();
+  };
 
   useEffect(() => {
     const refreshUpdatesSeen = () => setUpdatesSeenVersion((value) => value + 1);
@@ -133,26 +143,78 @@ export function AppSidebar() {
     refetchInterval: 15000,
   });
 
+  // Admin badge metrics
+  const { data: adminMetrics = { unreadReports: 0, suspendedUsers: 0, bannedUsers: 0, flaggedContent: 0, pendingApprovals: 0, recentAuditLogs: 0, securityAlerts: 0, failedLoginAttempts: 0, totalAdminActions: 0 } } = useQuery({
+    queryKey: ["admin-badge-metrics", adminViewMode],
+    queryFn: getAdminBadgeMetrics,
+    enabled: !!user && role === "admin" && adminViewMode === "admin",
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
   };
 
+  // Helper function to get badge count for a nav item
+  const getNavItemBadgeCount = (itemTitle: string): number => {
+    const sectionMap: Record<string, keyof typeof adminMetrics> = {
+      "Reports": "unreadReports",
+      "Users": "suspendedUsers",
+      "Content": "flaggedContent",
+      "Security": "securityAlerts",
+      "Monitoring": "recentAuditLogs",
+      "Audit": "totalAdminActions",
+    };
+
+    const metric = sectionMap[itemTitle];
+    return metric ? (adminMetrics[metric] as number) : 0;
+  };
+
   const renderNavItems = (items: typeof mainNav) =>
-    items.map((item) => (
-      <SidebarMenuItem key={item.title}>
-        <SidebarMenuButton asChild>
-          <NavLink
-            to={item.url}
-            end
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-            activeClassName="bg-primary/10 text-primary font-semibold"
-          >
+    items.map((item) => {
+      // Special handler for "Return to Admin" button
+      if (item.title === "Return to Admin") {
+        return (
+          <SidebarMenuItem key={item.title}>
+            <SidebarMenuButton asChild>
+              <button
+                onClick={handleReturnToAdmin}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+              >
+                <div className="relative">
+                  <item.icon className="h-[18px] w-[18px] shrink-0" />
+                </div>
+                {!collapsed && (
+                  <span className="flex items-center gap-2">
+                    {item.title}
+                  </span>
+                )}
+              </button>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      }
+
+      return (
+        <SidebarMenuItem key={item.title}>
+          <SidebarMenuButton asChild>
+            <NavLink
+              to={item.url}
+              end
+              onClick={onItemSelected}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+              activeClassName="bg-primary/10 text-primary font-semibold"
+            >
             <div className="relative">
               <item.icon className="h-[18px] w-[18px] shrink-0" />
               {(item.title === "Notifications" && unreadCount > 0) || (item.title === "Updates" && updatesUnreadCount > 0) ? (
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary" />
               ) : null}
+              {/* Admin badge indicator */}
+              {adminViewMode === "admin" && adminNav.some(a => a.title === item.title) && getNavItemBadgeCount(item.title) > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+              )}
             </div>
             {!collapsed && (
               <span className="flex items-center gap-2">
@@ -167,16 +229,29 @@ export function AppSidebar() {
                     {updatesUnreadCount > 9 ? "9+" : updatesUnreadCount}
                   </Badge>
                 )}
+                {/* Admin section badges */}
+                {adminViewMode === "admin" && adminNav.some(a => a.title === item.title) && (() => {
+                  const badgeCount = getNavItemBadgeCount(item.title);
+                  if (badgeCount > 0) {
+                    return (
+                      <Badge variant="destructive" className="h-5 min-w-5 text-[10px] px-1.5">
+                        {badgeCount > 99 ? "99+" : badgeCount}
+                      </Badge>
+                    );
+                  }
+                  return null;
+                })()}
               </span>
             )}
-          </NavLink>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    ));
+            </NavLink>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      );
+    });
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <SidebarContent className="pt-4 flex flex-col overflow-hidden">
+      <SidebarContent className="pt-4 flex flex-col h-full">
         {/* Brand */}
         <div className={`px-4 mb-6 shrink-0 ${collapsed ? "text-center" : ""}`}>
           <a href="/dashboard" className="font-display text-xl font-extrabold text-sidebar-foreground">
@@ -189,7 +264,7 @@ export function AppSidebar() {
         </div>
 
         {/* Scrollable Navigation Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className={`flex-1 ${collapsed ? "overflow-hidden" : "overflow-y-auto"} overflow-x-hidden pr-2`}>
           <SidebarGroup>
             <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/60">
               {!collapsed && "Menu"}

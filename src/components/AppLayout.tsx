@@ -4,15 +4,19 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield } from "lucide-react";
+import { Shield, Menu } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useState } from "react";
 
 export function AppLayout() {
   const { impersonationTarget, stopImpersonation, setAdminViewMode, authRole, readOnlyPreview } = useAuth();
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={!isMobile}>
       <div className="min-h-screen flex w-full">
-        <AppSidebar />
+        <AppSidebar onItemSelected={() => isMobile && setSidebarOpen(false)} />
         <div className="flex-1 flex flex-col min-w-0">
           {impersonationTarget && (
             <div className="border-b border-primary/20 bg-primary/10 px-4 py-2 text-sm text-foreground">
@@ -38,7 +42,20 @@ export function AppLayout() {
           )}
           {/* Top header */}
           <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-            <SidebarTrigger className="h-8 w-8" />
+            <div className="flex items-center gap-2">
+              {isMobile ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="h-8 w-8 p-0"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              ) : (
+                <SidebarTrigger className="h-8 w-8" />
+              )}
+            </div>
             <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto">

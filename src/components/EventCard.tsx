@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,7 @@ export function EventCard({
   index = 0,
 }: EventCardProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isHovered, setIsHovered] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
@@ -56,6 +57,22 @@ export function EventCard({
   const [searchQuery, setSearchQuery] = useState("");
   const [reportReason, setReportReason] = useState("Inappropriate content");
   const [reportDetails, setReportDetails] = useState("");
+
+  // Fetch first image/video from event_media table
+  const { data: eventMedia = [] } = useQuery({
+    queryKey: ["event-media-preview", event?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("event_media")
+        .select("*")
+        .eq("event_id", event.id)
+        .eq("media_type", "image")
+        .order("display_order", { ascending: true })
+        .limit(1);
+      return data ?? [];
+    },
+    enabled: !!event?.id,
+  });
 
   const eventDate = new Date(event.event_date);
   const formattedDate = eventDate.toLocaleDateString("en", {
@@ -180,14 +197,15 @@ export function EventCard({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.05 }}
         onMouseEnter={() => setIsHovered(true)}
+        onClick={() => navigate(`/events/${event.id}`)}
         onMouseLeave={() => setIsHovered(false)}
         className="relative group overflow-hidden rounded-3xl bg-slate-900 shadow-lg hover:shadow-2xl transition-all duration-300 h-96 md:h-[550px] cursor-pointer"
       >
         {/* MASSIVE Background Image - Takes up entire card */}
         <div className="absolute inset-0 overflow-hidden">
-          {event.cover_url ? (
+          {event.cover_url || eventMedia[0]?.media_url ? (
             <img
-              src={event.cover_url}
+              src={event.cover_url || eventMedia[0]?.media_url}
               alt={event.title}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             />

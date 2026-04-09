@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,7 +25,28 @@ export default function AdminAuditPage() {
         .limit(100);
       return data ?? [];
     },
+    refetchInterval: 5000,
+    refetchOnMount: true,
   });
+
+  // Real-time subscription for new audit logs
+  useEffect(() => {
+    const channel = supabase
+      .channel("audit-logs-realtime")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "admin_audit_logs",
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["admin", "audit-page-logs"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   const { data: profiles = [] } = useQuery({
     queryKey: ["admin", "audit-page-profiles"],
     queryFn: fetchAdminProfiles,
