@@ -1,52 +1,64 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Upload item image to storage
- * Note: The bucket must exist in Supabase (item_images)
- * If bucket doesn't exist, images will fail to upload
+ * Note: Bucket creation requires Supabase admin access
+ * This cannot be done from the browser client
+ * Users must create buckets manually in Supabase dashboard
+ */
+
+/**
+ * Upload item image to storage (same way as events)
+ * Uses the "project-files" bucket that already exists
  */
 export async function uploadItemImage(
   userId: string,
   file: File
 ): Promise<string | null> {
   try {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `marketplace/${userId}/${fileName}`;
+    console.log("📸 Starting image upload:", file.name);
+    
+    if (file.size > 50 * 1024 * 1024) {
+      throw new Error("File size exceeds 50MB limit");
+    }
 
-    // Upload file to storage bucket
-    const { error: uploadError, data } = await supabase.storage
-      .from("item_images")
-      .upload(filePath, file, {
+    const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `marketplace/${userId}/${Date.now()}.${fileExt}`;
+
+    console.log("📁 Upload path:", path);
+
+    // Upload to project-files bucket (same as events use)
+    const { error: uploadError } = await supabase.storage
+      .from("project-files")
+      .upload(path, file, {
         cacheControl: "3600",
-        upsert: false,
-        contentType: file.type,
+        upsert: true,
+        contentType: file.type || "application/octet-stream",
       });
 
     if (uploadError) {
-      // Better error messages
-      if (uploadError.message.includes("Bucket not found")) {
-        throw new Error(
-          "Storage bucket is not configured. Please contact support or try again later."
-        );
-      }
-      throw new Error(`Upload failed: ${uploadError.message}`);
+      console.error("❌ Upload error:", uploadError.message);
+      return null;
     }
+
+    console.log("✅ File uploaded successfully");
 
     // Get public URL for the uploaded file
     const { data: urlData } = supabase.storage
-      .from("item_images")
-      .getPublicUrl(filePath);
+      .from("project-files")
+      .getPublicUrl(path);
 
-    if (!urlData?.publicUrl) {
+    const publicUrl = urlData?.publicUrl;
+    if (!publicUrl) {
       throw new Error("Failed to generate image URL");
     }
 
-    return urlData.publicUrl;
+    console.log("🔗 Image public URL:", publicUrl);
+    return publicUrl;
   } catch (error) {
-    console.error("Error uploading item image:", error);
-    throw error;
+    console.error("📸 Image upload error:", error instanceof Error ? error.message : error);
+    return null;
   }
+
 }
 
 /**
@@ -58,47 +70,53 @@ export async function uploadDigitalFile(
   file: File
 ): Promise<string | null> {
   try {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `${userId}/${fileName}`;
+    console.log("📦 Starting digital file upload:", file.name);
+    
+    if (file.size > 1024 * 1024 * 1024) {
+      throw new Error("File size exceeds 1GB limit");
+    }
 
-    // Upload file to storage bucket
-    const { error: uploadError, data } = await supabase.storage
-      .from("digital_products")
-      .upload(filePath, file, {
+    const fileExt = file.name.split(".").pop()?.toLowerCase() || "zip";
+    const path = `digital-products/${userId}/${Date.now()}_${file.name}`;
+
+    console.log("📁 Upload path:", path);
+
+    // Upload to project-files bucket (same as events)
+    const { error: uploadError } = await supabase.storage
+      .from("project-files")
+      .upload(path, file, {
         cacheControl: "3600",
-        upsert: false,
-        contentType: file.type,
+        upsert: true,
+        contentType: file.type || "application/octet-stream",
       });
 
     if (uploadError) {
-      if (uploadError.message.includes("Bucket not found")) {
-        throw new Error(
-          "Digital products storage not configured. Contact support."
-        );
-      }
-      throw new Error(`Upload failed: ${uploadError.message}`);
+      console.error("❌ Digital file upload error:", uploadError.message);
+      return null;
     }
+
+    console.log("✅ Digital file uploaded successfully");
 
     // Get public URL for the uploaded file
     const { data: urlData } = supabase.storage
-      .from("digital_products")
-      .getPublicUrl(filePath);
+      .from("project-files")
+      .getPublicUrl(path);
 
     if (!urlData?.publicUrl) {
       throw new Error("Failed to generate file URL");
     }
 
+    console.log("🔗 File URL:", urlData.publicUrl);
     return urlData.publicUrl;
   } catch (error) {
-    console.error("Error uploading digital file:", error);
-    throw error;
+    console.error("📦 Digital file upload error:", error instanceof Error ? error.message : error);
+    return null;
   }
 }
 
 /**
  * Initialize storage bucket (checks if it exists)
- * This is informational only - bucket must be created in Supabase dashboard
+ * Uses "project-files" bucket that already exists (same as events)
  */
 export async function initializeStorageBuckets() {
   try {
@@ -106,27 +124,22 @@ export async function initializeStorageBuckets() {
     const { data: buckets, error } = await supabase.storage.listBuckets();
     
     if (error) {
-      console.warn("Could not verify storage buckets:", error.message);
+      console.warn("⚠ Could not verify storage buckets:", error.message);
       return false;
     }
 
-    const hasItemBucket = buckets?.some(b => b.name === "item_images");
-    const hasDigitalBucket = buckets?.some(b => b.name === "digital_products");
+    const hasProjectFilesBucket = buckets?.some(b => b.name === "project-files");
 
-    if (hasItemBucket && hasDigitalBucket) {
-      console.log("✓ Storage buckets available: item_images, digital_products");
+    if (hasProjectFilesBucket) {
+      console.log("%c✓ Storage ready! Using project-files bucket", "color: #22C55E; font-weight: bold");
       return true;
     } else {
-      const missing = [];
-      if (!hasItemBucket) missing.push("item_images");
-      if (!hasDigitalBucket) missing.push("digital_products");
-      console.warn(
-        `⚠ Storage buckets missing: ${missing.join(", ")}. Please create them in Supabase dashboard.`
-      );
+      console.warn("%c⚠ project-files bucket not found", "color: #FF9500; font-size: 13px; font-weight: bold");
       return false;
     }
   } catch (error) {
-    console.error("Error checking storage buckets:", error);
+    console.error("💥 Error checking buckets:", error);
     return false;
   }
+
 }

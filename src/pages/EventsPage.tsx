@@ -26,21 +26,29 @@ export default function EventsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all"); // all, virtual, inperson
   const [dateFilter, setDateFilter] = useState("upcoming"); // upcoming, past, all
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("events")
-        .select("*")
-        .or(`is_public.eq.true,user_id.eq.${user!.id}`)
-        .eq("is_cancelled", false)
-        .order("event_date", { ascending: true })
-        .limit(100);
-      return data ?? [];
+      try {
+        // @ts-ignore - Supabase type definition issue with chained queries
+        const { data } = await supabase
+          .from("events")
+          .select("*")
+          .eq("is_cancelled", false)
+          .order("event_date", { ascending: true })
+          .limit(100);
+
+        if (user?.id && data) {
+          return data.filter(e => e.is_public || e.user_id === user.id);
+        }
+        
+        return data ?? [];
+      } catch (error) {
+        console.error("Error fetching events:", error);
+        return [];
+      }
     },
     enabled: !!user,
   });
@@ -70,10 +78,10 @@ export default function EventsPage() {
   const { data: eventCreators = {} } = useQuery({
     queryKey: ["event-creators", events.map(e => e.user_id)],
     queryFn: async () => {
-      const userIds = [...new Set(events.map(e => e.user_id))];
+      const userIds = [...new Set(events.map(e => e.user_id))] as string[];
       const creators: Record<string, string> = {};
       for (const uid of userIds) {
-        const { data } = await supabase.from("profiles").select("display_name").eq("user_id", uid).single();
+        const { data } = await supabase.from("profiles").select("display_name").eq("user_id", uid as string).single() as any;
         creators[uid] = data?.display_name || "Artist";
       }
       return creators;
@@ -104,16 +112,6 @@ export default function EventsPage() {
     filteredEvents = upcomingEvents;
   } else if (dateFilter === "past") {
     filteredEvents = pastEvents;
-  }
-
-  if (categoryFilter !== "all") {
-    filteredEvents = filteredEvents.filter(e => e.category === categoryFilter);
-  }
-
-  if (typeFilter === "virtual") {
-    filteredEvents = filteredEvents.filter(e => e.is_virtual);
-  } else if (typeFilter === "inperson") {
-    filteredEvents = filteredEvents.filter(e => !e.is_virtual);
   }
 
   if (searchQuery.trim()) {
@@ -167,38 +165,12 @@ export default function EventsPage() {
             </SelectContent>
           </Select>
 
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="virtual">Virtual</SelectItem>
-              <SelectItem value="inperson">In-Person</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="art">Art</SelectItem>
-              <SelectItem value="music">Music</SelectItem>
-              <SelectItem value="workshop">Workshop</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {(searchQuery || categoryFilter !== "all" || typeFilter !== "all" || dateFilter !== "upcoming") && (
+          {(searchQuery || dateFilter !== "upcoming") && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
                 setSearchQuery("");
-                setCategoryFilter("all");
-                setTypeFilter("all");
                 setDateFilter("upcoming");
               }}
               className="text-xs"

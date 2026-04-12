@@ -35,9 +35,9 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import MessagesPage from "./pages/MessagesPage";
 import ExplorePage from "./pages/ExplorePage";
 import FeedPage from "./pages/FeedPage";
-import EventsPage from "./pages/EventsPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import CreateEventPage from "./pages/CreateEventPage";
+import EventsPage from "./pages/EventsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import BookmarksPage from "./pages/BookmarksPage";
@@ -51,6 +51,23 @@ import MarketplacePage from "./pages/MarketplacePage";
 import MarketplaceDetailPage from "./pages/MarketplaceDetailPage";
 import CollaborationNetworkPage from "./pages/CollaborationNetworkPage";
 import NotFound from "./pages/NotFound";
+import { DocsIndexPage } from "./pages/docs/DocsIndexPage";
+import { FeaturesPage } from "./pages/docs/FeaturesPage";
+import { PricingPage } from "./pages/docs/PricingPage";
+import { HelpCenterPage } from "./pages/docs/HelpCenterPage";
+import { ApiDocsPage } from "./pages/docs/ApiDocsPage";
+import { DiscordPage } from "./pages/docs/DiscordPage";
+import { PrivacyPage } from "./pages/docs/PrivacyPage";
+import { TermsPage } from "./pages/docs/TermsPage";
+import { ChangelogPage } from "./pages/docs/ChangelogPage";
+import { RoadmapPage } from "./pages/docs/RoadmapPage";
+import { TwitterPage } from "./pages/docs/TwitterPage";
+import { BlogPage } from "./pages/docs/BlogPage";
+import { EventsPage as DocsEventsPage } from "./pages/docs/EventsPage";
+import { TutorialsPage } from "./pages/docs/TutorialsPage";
+import { StatusPage } from "./pages/docs/StatusPage";
+import { CookiesPage } from "./pages/docs/CookiesPage";
+import { LicensesPage } from "./pages/docs/LicensesPage";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -114,6 +131,24 @@ const App = () => (
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              {/* Docs Routes */}
+              <Route path="/docs" element={<DocsIndexPage />} />
+              <Route path="/docs/features" element={<FeaturesPage />} />
+              <Route path="/docs/pricing" element={<PricingPage />} />
+              <Route path="/docs/changelog" element={<ChangelogPage />} />
+              <Route path="/docs/roadmap" element={<RoadmapPage />} />
+              <Route path="/docs/help-center" element={<HelpCenterPage />} />
+              <Route path="/docs/api" element={<ApiDocsPage />} />
+              <Route path="/docs/tutorials" element={<TutorialsPage />} />
+              <Route path="/docs/status" element={<StatusPage />} />
+              <Route path="/docs/discord" element={<DiscordPage />} />
+              <Route path="/docs/twitter" element={<TwitterPage />} />
+              <Route path="/docs/blog" element={<BlogPage />} />
+              <Route path="/docs/events" element={<DocsEventsPage />} />
+              <Route path="/docs/privacy" element={<PrivacyPage />} />
+              <Route path="/docs/terms" element={<TermsPage />} />
+              <Route path="/docs/cookies" element={<CookiesPage />} />
+              <Route path="/docs/licenses" element={<LicensesPage />} />
               <Route
                 path="/continue-as"
                 element={

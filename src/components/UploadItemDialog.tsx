@@ -56,6 +56,56 @@ const FILE_FORMATS = [
   "Other",
 ];
 
+// Category-based defaults
+const CATEGORY_DEFAULTS = {
+  "Audio": {
+    file_format: "MP3",
+    quality: "High",
+    duration: "",
+    resolution: "",
+    software_used: "Logic Pro, Ableton, FL Studio",
+    skill_level: "All Levels",
+  },
+  "Video": {
+    file_format: "MP4",
+    quality: "High",
+    duration: "",
+    resolution: "1080p",
+    software_used: "Premiere Pro, Final Cut Pro, DaVinci Resolve",
+    skill_level: "All Levels",
+  },
+  "Images": {
+    file_format: "JPG",
+    quality: "Ultra HD",
+    duration: "",
+    resolution: "4K",
+    software_used: "Photoshop, Lightroom, GIMP",
+    skill_level: "All Levels",
+  },
+  "Projects": {
+    file_format: "ZIP",
+    quality: "High",
+    duration: "",
+    resolution: "",
+    software_used: "Various",
+    skill_level: "Intermediate",
+  },
+};
+
+// Detect file format from file extension
+const detectFileFormat = (filename: string): string => {
+  const ext = filename.split(".").pop()?.toUpperCase() || "Other";
+  const formatMap: { [key: string]: string } = {
+    "MP3": "MP3", "WAV": "WAV", "FLAC": "FLAC", "OGG": "WAV",
+    "MP4": "MP4", "MOV": "MOV", "AVI": "AVI", "MKV": "MP4", "WMV": "AVI",
+    "JPG": "JPG", "JPEG": "JPG", "PNG": "PNG", "GIF": "PNG", "WEBP": "PNG",
+    "PSD": "PSD", "AI": "AI", "EPS": "AI",
+    "ZIP": "ZIP", "RAR": "RAR", "7Z": "ZIP",
+    "DOCX": "ZIP", "XLSX": "ZIP", "PDF": "ZIP",
+  };
+  return formatMap[ext] || "Other";
+};
+
 const PAYMENT_METHODS = [
   "Credit Card",
   "PayPal",
@@ -123,6 +173,10 @@ export function UploadItemDialog({
     collaborators: "",
     contact_email: "",
     refund_policy: "30 Days",
+    // NEW: Security
+    download_password: "",
+    allow_comments: true,
+    comments_visible_to_all: false,
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -131,18 +185,27 @@ export function UploadItemDialog({
   const [digitalFileName, setDigitalFileName] = useState<string>("");
   const [storageAvailable, setStorageAvailable] = useState(true);
 
-  // Initialize storage buckets when dialog opens
+  // Check storage buckets when dialog opens
   useEffect(() => {
     if (open) {
-      initializeStorageBuckets().then(available => {
-        setStorageAvailable(available);
-        if (!available) {
-          console.warn("Storage bucket not available - image upload will be disabled");
+      (async () => {
+        try {
+          console.log("🪣 Checking storage buckets...");
+          const available = await initializeStorageBuckets();
+          
+          setStorageAvailable(available);
+          
+          if (!available) {
+            console.warn("⚠️ Storage buckets not found. You can still upload - files will be saved when buckets are created.");
+            toast.warning("📋 To enable image uploads, create 'item_images' and 'digital_products' buckets in Supabase Storage.");
+          } else {
+            console.log("✅ Storage ready for uploads!");
+          }
+        } catch (err) {
+          console.error("Failed to check storage buckets:", err);
+          setStorageAvailable(false);
         }
-      }).catch(err => {
-        console.error("Failed to check storage buckets:", err);
-        setStorageAvailable(false);
-      });
+      })();
     }
   }, [open]);
 
@@ -170,20 +233,34 @@ export function UploadItemDialog({
       // Upload image if provided (optional)
       if (imageFile) {
         try {
+          console.log("🖼️ Uploading image:", imageFile.name);
           imageUrl = await uploadItemImage(user.id, imageFile);
+          if (imageUrl) {
+            console.log("✅ Image uploaded:", imageUrl);
+          } else {
+            console.warn("⚠️ Image upload returned null - storage bucket may not exist");
+            // Continue without image - don't throw error
+          }
         } catch (error) {
-          console.warn("Image upload failed, proceeding without image:", error);
-          imageUrl = null;
+          console.error("📸 Image upload error:", error);
+          // Log but don't throw - let item creation continue
+          toast.warning("⚠️ Image upload failed - item will be created without image");
         }
       }
 
       // Upload digital file if provided
       if (digitalFile) {
         try {
+          console.log("📦 Uploading digital file:", digitalFile.name);
           fileUrl = await uploadDigitalFile(user.id, digitalFile);
+          if (fileUrl) {
+            console.log("✅ File uploaded:", fileUrl);
+          } else {
+            console.warn("⚠️ File URL is null");
+          }
         } catch (error) {
-          console.warn("File upload failed, proceeding with manual URL:", error);
-          // Keep the manual URL if provided
+          console.error("📦 File upload error:", error);
+          // Keep the manual URL if provided, don't throw
           fileUrl = formData.file_url || null;
         }
       }
@@ -229,6 +306,10 @@ export function UploadItemDialog({
           ...(formData.bulk_pricing && { bulk_pricing: formData.bulk_pricing }),
           ...(formData.contact_email && { contact_email: formData.contact_email }),
           ...(formData.collaborators && { collaborators: formData.collaborators }),
+          // NEW: Security & Comments
+          ...(formData.download_password && { download_password: formData.download_password }),
+          allow_comments: formData.allow_comments,
+          comments_visible_to_all: formData.comments_visible_to_all,
           likes_count: 0,
           created_at: new Date().toISOString(),
         })
@@ -251,9 +332,11 @@ export function UploadItemDialog({
       onSuccess?.();
     },
     onError: (error: Error) => {
-      if (error.message.includes("Bucket not found") || error.message.includes("Image")) {
-        toast.success("✓ Item created! (Images setup required - see docs)");
-        // Refetch marketplace and user profile selling items
+      // If bucket not found, still create the item but warn user
+      if (error.message.includes("Bucket") || error.message.includes("bucket")) {
+        console.warn("⚠️ Storage bucket issue - item created but without image/file URLs");
+        toast.warning("⚠️ Item created, but image/file upload failed. Create buckets in Supabase to enable file storage.");
+        // Still refetch and close
         queryClient.invalidateQueries({ queryKey: ["marketplace-items"] });
         queryClient.invalidateQueries({ queryKey: ["user-selling"] });
         resetForm();
@@ -299,6 +382,9 @@ export function UploadItemDialog({
       collaborators: "",
       contact_email: "",
       refund_policy: "30 Days",
+      download_password: "",
+      allow_comments: true,
+      comments_visible_to_all: false,
     });
     setImageFile(null);
     setImagePreview("");
@@ -313,6 +399,19 @@ export function UploadItemDialog({
 
   const handleSelectChange = (name: string, value: any) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Auto-populate fields when category changes
+    if (name === "category" && CATEGORY_DEFAULTS[value as keyof typeof CATEGORY_DEFAULTS]) {
+      const defaults = CATEGORY_DEFAULTS[value as keyof typeof CATEGORY_DEFAULTS];
+      setFormData((prev) => ({
+        ...prev,
+        category: value,
+        file_format: defaults.file_format,
+        quality: defaults.quality,
+        software_used: defaults.software_used,
+        skill_level: defaults.skill_level,
+      }));
+    }
   };
 
   const handlePaymentMethodChange = (method: string) => {
@@ -346,7 +445,12 @@ export function UploadItemDialog({
     if (file) {
       setDigitalFile(file);
       setDigitalFileName(file.name);
-      toast.success(`✓ File selected: ${file.name}`);
+      
+      // Auto-detect and set file format
+      const detectedFormat = detectFileFormat(file.name);
+      setFormData((prev) => ({ ...prev, file_format: detectedFormat }));
+      
+      toast.success(`✓ File selected: ${file.name} (Format: ${detectedFormat})`);
     }
   };
 
@@ -864,6 +968,44 @@ export function UploadItemDialog({
                     placeholder="Credits, co-creators (comma-separated)"
                     className="bg-muted/50 border-border/50 h-10 text-sm"
                   />
+                </div>
+
+                {/* Security & Engagement */}
+                <div className="pt-4 border-t border-border/50/30 space-y-3">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold block">🔒 Download Password (Optional)</label>
+                    <Input
+                      name="download_password"
+                      type="password"
+                      value={formData.download_password}
+                      onChange={handleInputChange}
+                      placeholder="Set password for buyers to enter when downloading"
+                      className="bg-muted/50 border-border/50 h-10 text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">Buyers will need this password to download your content</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => handleSelectChange("allow_comments", !formData.allow_comments)}>
+                    <Checkbox
+                      checked={formData.allow_comments}
+                      onCheckedChange={(checked) => handleSelectChange("allow_comments", checked)}
+                      className="cursor-pointer"
+                    />
+                    <label className="text-sm font-medium cursor-pointer flex-1">Allow buyer comments & reviews</label>
+                  </div>
+
+                  {formData.allow_comments && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors cursor-pointer ml-4"
+                      onClick={() => handleSelectChange("comments_visible_to_all", !formData.comments_visible_to_all)}>
+                      <Checkbox
+                        checked={formData.comments_visible_to_all}
+                        onCheckedChange={(checked) => handleSelectChange("comments_visible_to_all", checked)}
+                        className="cursor-pointer"
+                      />
+                      <label className="text-sm font-medium cursor-pointer flex-1">Show comments to all users</label>
+                    </div>
+                  )}
                 </div>
               </div>
             </details>

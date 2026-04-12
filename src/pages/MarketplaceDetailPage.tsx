@@ -11,9 +11,17 @@ import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ArrowLeft, Eye, Heart, Share2, MessageCircle, Bookmark, Download,
-  Music, Video, Image as ImageIcon, Download as DownloadIcon
+  Music, Video, Image as ImageIcon, Download as DownloadIcon, X, Lock
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EngagementMenu } from "@/components/EngagementMenu";
+import { CommentSection } from "@/components/CommentSection";
 
 export default function MarketplaceDetailPage() {
   const { itemId } = useParams<{ itemId: string }>();
@@ -21,7 +29,23 @@ export default function MarketplaceDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [engagementMenuOpen, setEngagementMenuOpen] = useState(false);
-  const [interactionComment, setInteractionComment] = useState("");
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [downloadPassword, setDownloadPassword] = useState("");
+
+  // Password verification handler
+  const handleVerifyPassword = () => {
+    if (downloadPassword === item?.download_password) {
+      if (item?.file_url) {
+        window.open(item.file_url, "_blank");
+        setPasswordDialogOpen(false);
+        setDownloadPassword("");
+        toast.success("Password correct! Download started!");
+      }
+    } else {
+      toast.error("Incorrect password. Please try again.");
+      setDownloadPassword("");
+    }
+  };
 
   // Fetch item details
   const { data: item, isLoading } = useQuery({
@@ -29,29 +53,49 @@ export default function MarketplaceDetailPage() {
     queryFn: async () => {
       if (!itemId) return null;
 
-      const { data, error } = await (supabase as any)
-        .from("selling_items")
-        .select(
-          `
-          *,
-          seller:profiles(
-            id,
-            display_name,
-            username,
-            avatar_url,
-            bio
-          )
-        `
-        )
-        .eq("id", itemId)
-        .single();
+      try {
+        console.log("🔍 Fetching item:", itemId);
 
-      if (error) {
-        console.error("Error fetching item:", error);
+        // First fetch the item
+        const { data: itemData, error } = await (supabase as any)
+          .from("selling_items")
+          .select("*")
+          .eq("id", itemId)
+          .single();
+
+        if (error) {
+          console.error("❌ Error fetching item:", error);
+          return null;
+        }
+
+        console.log("✅ Item fetched:", itemData);
+
+        // Then fetch seller data if seller_id exists
+        let seller = null;
+        if (itemData?.seller_id) {
+          const { data: sellerData, error: sellerError } = await (supabase as any)
+            .from("profiles")
+            .select("user_id, display_name, username, avatar_url, bio")
+            .eq("user_id", itemData.seller_id)
+            .single();
+
+          if (sellerError) {
+            console.warn("⚠️ Error fetching seller:", sellerError);
+          } else {
+            // Map user_id to id for compatibility
+            seller = sellerData ? { id: sellerData.user_id, ...sellerData } : null;
+            console.log("✅ Seller fetched:", seller);
+          }
+        }
+
+        return {
+          ...itemData,
+          seller
+        };
+      } catch (err) {
+        console.error("💥 Unexpected error:", err);
         return null;
       }
-
-      return data;
     },
     enabled: !!itemId,
   });
@@ -236,31 +280,6 @@ export default function MarketplaceDetailPage() {
     },
   });
 
-  // Interaction mutation
-  const interactionMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) {
-        toast.error("Please log in to interact");
-        return;
-      }
-      if (!itemId || !interactionComment.trim()) return;
-
-      await (supabase as any)
-        .from("digital_product_interactions")
-        .insert({
-          item_id: itemId,
-          user_id: user.id,
-          comment_type: "feedback",
-          comment_text: interactionComment,
-        });
-    },
-    onSuccess: () => {
-      setInteractionComment("");
-      queryClient.invalidateQueries({ queryKey: ["item-engagement-counts", itemId] });
-      toast.success("Comment posted!");
-    },
-  });
-
   // Get media type icon
   const getMediaIcon = () => {
     const format = item?.file_format?.toLowerCase() || "";
@@ -364,18 +383,103 @@ export default function MarketplaceDetailPage() {
               </div>
 
               {/* Product Details */}
-              <div className="grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-lg">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">License</p>
-                  <p className="font-medium text-sm">{item.license_type || "Personal"}</p>
+              <div className="space-y-4">
+                {/* Basic Specifications */}
+                <div className="grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">License</p>
+                    <p className="font-medium text-sm">{item.license_type || "Personal"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Format</p>
+                    <p className="font-medium text-sm">{item.file_format}</p>
+                  </div>
+                  {item.language && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Language</p>
+                      <p className="font-medium text-sm">{item.language}</p>
+                    </div>
+                  )}
+                  {item.quality && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Quality</p>
+                      <p className="font-medium text-sm">{item.quality}</p>
+                    </div>
+                  )}
+                  {item.duration && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Duration</p>
+                      <p className="font-medium text-sm">{item.duration}</p>
+                    </div>
+                  )}
+                  {item.resolution && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Resolution</p>
+                      <p className="font-medium text-sm">{item.resolution}</p>
+                    </div>
+                  )}
+                  {item.version && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Version</p>
+                      <p className="font-medium text-sm">{item.version}</p>
+                    </div>
+                  )}
+                  {item.skill_level && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Skill Level</p>
+                      <p className="font-medium text-sm">{item.skill_level}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Format</p>
-                  <p className="font-medium text-sm">{item.file_format}</p>
-                </div>
+
+                {/* Additional Info */}
+                {(item.software_used || item.usage_rights || item.artist_name) && (
+                  <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+                    {item.software_used && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Software Used</p>
+                        <p className="font-medium text-sm">{item.software_used}</p>
+                      </div>
+                    )}
+                    {item.usage_rights && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Usage Rights</p>
+                        <p className="font-medium text-sm">{item.usage_rights}</p>
+                      </div>
+                    )}
+                    {item.artist_name && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Artist Name</p>
+                        <p className="font-medium text-sm">{item.artist_name}</p>
+                      </div>
+                    )}
+                    {item.collaborators && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Collaborators</p>
+                        <p className="font-medium text-sm">{item.collaborators}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Rights & Policies */}
+                {(item.commercial_use || item.resale_allowed || item.sample_available || item.warranty || item.refund_policy) && (
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase">Rights & Policies</p>
+                    <div className="space-y-2">
+                      {item.commercial_use && <div className="text-sm">✓ Commercial Use Allowed</div>}
+                      {item.resale_allowed && <div className="text-sm">✓ Resale Rights Included</div>}
+                      {item.sample_available && <div className="text-sm">✓ Sample Available</div>}
+                      {item.warranty && <div className="text-sm">✓ Product Warranty Included</div>}
+                      {item.support_included && <div className="text-sm">✓ Customer Support Included</div>}
+                      {item.refund_policy && <div className="text-sm">Refund Policy: {item.refund_policy}</div>}
+                    </div>
+                  </div>
+                )}
+
                 {item.tags && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-muted-foreground mb-1">Tags</p>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Tags</p>
                     <div className="flex flex-wrap gap-1">
                       {item.tags.split(",").map((tag: string) => (
                         <span key={tag} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
@@ -436,24 +540,12 @@ export default function MarketplaceDetailPage() {
             </div>
 
             {/* Comments Section */}
-            <div className="space-y-3">
-              <h3 className="font-semibold">Comments & Feedback</h3>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Share your thoughts..."
-                  value={interactionComment}
-                  onChange={(e) => setInteractionComment(e.target.value)}
-                  className="bg-muted/50"
-                />
-                <Button
-                  onClick={() => interactionMutation.mutate()}
-                  disabled={!interactionComment.trim() || interactionMutation.isPending}
-                  size="sm"
-                >
-                  Post
-                </Button>
-              </div>
-            </div>
+            <CommentSection
+              itemId={itemId!}
+              allowComments={item?.allow_comments ?? true}
+              commentsVisibleToAll={item?.comments_visible_to_all ?? false}
+              sellerId={item?.seller_id!}
+            />
           </div>
 
           {/* Sidebar - Seller & Actions */}
@@ -491,10 +583,19 @@ export default function MarketplaceDetailPage() {
               <Button
                 className="w-full gap-2"
                 onClick={() => {
-                  if (item.file_url) {
-                    window.open(item.file_url, "_blank");
-                  } else {
+                  if (!item.file_url) {
                     toast.error("Download link not available");
+                    return;
+                  }
+                  
+                  // If password protected, show dialog
+                  if (item.download_password) {
+                    setPasswordDialogOpen(true);
+                    setDownloadPassword("");
+                  } else {
+                    // Direct download if no password
+                    window.open(item.file_url, "_blank");
+                    toast.success("Download started!");
                   }
                 }}
               >
@@ -552,6 +653,59 @@ export default function MarketplaceDetailPage() {
 
       {/* Engagement Menu Modal */}
       <EngagementMenu itemId={itemId!} open={engagementMenuOpen} onOpenChange={setEngagementMenuOpen} />
+
+      {/* Download Password Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <Lock size={24} className="text-primary" />
+              <div>
+                <DialogTitle>Password Protected</DialogTitle>
+                <DialogDescription className="mt-1">
+                  This download requires a password. Please enter the password provided by the seller.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <Input
+              type="password"
+              placeholder="Enter password"
+              value={downloadPassword}
+              onChange={(e) => setDownloadPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && downloadPassword.trim()) {
+                  handleVerifyPassword();
+                }
+              }}
+              autoFocus
+              className="bg-muted/50"
+            />
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPasswordDialogOpen(false);
+                  setDownloadPassword("");
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleVerifyPassword()}
+                disabled={!downloadPassword.trim()}
+                className="flex-1"
+              >
+                Verify & Download
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

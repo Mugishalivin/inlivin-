@@ -96,14 +96,20 @@ export function EventCard({
           .delete()
           .eq("event_id", event.id)
           .eq("user_id", user!.id);
-        if (error) throw error;
+        if (error) {
+          toast.error('RSVP update failed');
+          return;
+        }
       } else {
         const { error } = await supabase.from("event_rsvps").insert({
           event_id: event.id,
           user_id: user!.id,
           status: "going",
         });
-        if (error) throw error;
+        if (error) {
+          toast.error('RSVP failed');
+          return;
+        }
         // Send notification to event creator
         try {
           await supabase.from("notifications").insert({
@@ -172,7 +178,10 @@ export function EventCard({
           reporter_name: user.user_metadata?.name || user.email || "anonymous",
         },
       });
-      if (error) throw error;
+      if (error) {
+        toast.error('Report failed - try again');
+        return;
+      }
       await supabase.from("notifications").insert({
         user_id: event.user_id,
         title: "Content reported",
