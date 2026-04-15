@@ -177,18 +177,36 @@ function Scene() {
 }
 
 export default function Hero3DScene() {
-  return (
-    <div className="absolute inset-0 z-0">
-      <Canvas
-        camera={{ position: [0, 0, 5], fov: 50 }}
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: true }}
-        style={{ background: "transparent" }}
-      >
-        <Suspense fallback={null}>
-          <Scene />
-        </Suspense>
-      </Canvas>
-    </div>
-  );
+  try {
+    return (
+      <div className="absolute inset-0 z-0 w-full h-full overflow-hidden">
+        <Canvas
+          camera={{ position: [0, 0, 5], fov: 50 }}
+          dpr={typeof window !== 'undefined' ? window.devicePixelRatio : 1}
+          gl={{ 
+            antialias: true, 
+            alpha: true,
+            precision: 'lowp'
+          }}
+          style={{ 
+            background: "transparent",
+            width: "100%",
+            height: "100%",
+            display: "block"
+          }}
+        >
+          <color attach="background" args={["transparent"]} />
+          <Suspense fallback={null}>
+            <Scene />
+          </Suspense>
+        </Canvas>
+      </div>
+    );
+  } catch (error) {
+    console.error("Hero3DScene Error:", error);
+    // Fallback gradient if 3D fails
+    return (
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+    );
+  }
 }

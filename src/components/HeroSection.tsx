@@ -1,10 +1,9 @@
-import { lazy, Suspense, Component, ReactNode } from "react";
+import { Component, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-const Hero3DScene = lazy(() => import("@/components/Hero3DScene"));
+import Hero3DScene from "@/components/Hero3DScene";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
@@ -12,13 +11,17 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError() {
+  static getDerivedStateFromError(error: Error) {
+    console.error("3D Scene Error:", error);
     return { hasError: true };
   }
 
   render() {
     if (this.state.hasError) {
-      return null;
+      // Show fallback instead of hiding
+      return (
+        <div className="absolute inset-0 z-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+      );
     }
     return this.props.children;
   }
@@ -36,9 +39,7 @@ export function HeroSection() {
     <section className="relative min-h-screen flex flex-col justify-center pt-16 overflow-hidden">
       {/* 3D Background */}
       <ErrorBoundary>
-        <Suspense fallback={null}>
-          <Hero3DScene />
-        </Suspense>
+        <Hero3DScene />
       </ErrorBoundary>
 
       {/* Gradient overlay for readability */}
