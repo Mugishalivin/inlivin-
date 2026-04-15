@@ -1,28 +1,31 @@
-import { lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const Hero3DScene = lazy(() => import("@/components/Hero3DScene"));
-
 const marqueeItems = [
-  "Musicians", "Producers", "Designers", "Photographers", "Filmmakers",
-  "Animators", "Writers", "Vocalists", "DJs", "Illustrators",
+  "Musicians",
+  "Producers",
+  "Designers",
+  "Photographers",
+  "Filmmakers",
+  "Animators",
+  "Writers",
+  "Vocalists",
+  "DJs",
+  "Illustrators",
 ];
 
 export function HeroSection() {
   const navigate = useNavigate();
 
   return (
-    <section className="relative min-h-screen flex flex-col justify-center pt-16 overflow-hidden">
-      {/* 3D Background */}
-      <Suspense fallback={null}>
-        <Hero3DScene />
-      </Suspense>
-
-      {/* Gradient overlay for readability */}
-      <div className="absolute inset-0 z-[1] bg-gradient-to-b from-background/60 via-background/40 to-background pointer-events-none" />
+    <section className="relative min-h-screen flex flex-col justify-center pt-16 overflow-hidden bg-gradient-to-br from-white via-gray-50 to-gray-100">
+      {/* Clean gradient background instead of 3D scene */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-blue-300 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-purple-300 rounded-full blur-3xl" />
+      </div>
 
       <div className="container relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
@@ -32,8 +35,8 @@ export function HeroSection() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-muted-foreground mb-8">
-                <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white/80 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-gray-700 mb-8">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                 Connecting 50,000+ artists worldwide
               </span>
             </motion.div>
@@ -42,20 +45,20 @@ export function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="font-display text-[clamp(2.5rem,6vw,5rem)] font-extrabold leading-[0.95] tracking-tight mb-6"
+              className="font-display text-[clamp(2.5rem,6vw,5rem)] font-extrabold leading-[0.95] tracking-tight mb-6 text-gray-900"
             >
               Create
               <br />
               Together,
               <br />
-              <span className="text-gradient">Anywhere.</span>
+              <span className="text-blue-600">Anywhere.</span>
             </motion.h1>
 
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-lg text-muted-foreground leading-relaxed mb-10 max-w-md"
+              className="text-lg text-gray-700 leading-relaxed mb-10 max-w-md"
             >
               The collaboration platform built for artists. Find your people,
               share your craft, and build something extraordinary.
@@ -70,9 +73,13 @@ export function HeroSection() {
               <Button variant="hero" size="lg" onClick={() => navigate("/register")}>
                 Start Creating <ArrowRight size={18} />
               </Button>
-              <Button variant="hero-outline" size="lg" onClick={() => {
-                document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
-              }}>
+              <Button
+                variant="hero-outline"
+                size="lg"
+                onClick={() => {
+                  document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
                 See How It Works
               </Button>
             </motion.div>
@@ -96,7 +103,6 @@ export function HeroSection() {
             </motion.div>
           </div>
 
-          {/* Right side - floating glass card over 3D */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, rotateY: -10 }}
             animate={{ opacity: 1, scale: 1, rotateY: 0 }}
@@ -107,15 +113,20 @@ export function HeroSection() {
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
               <div className="relative space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-sm">IN</div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-sm">
+                    IN
+                  </div>
                   <div>
                     <div className="font-display font-bold text-foreground">Inlivin Studio</div>
-                    <div className="text-xs text-muted-foreground">Create • Collaborate • Connect</div>
+                    <div className="text-xs text-muted-foreground">Create | Collaborate | Connect</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
-                  {["🎵 Music", "🎨 Art", "📸 Photo"].map((cat) => (
-                    <div key={cat} className="rounded-xl bg-background/50 backdrop-blur border border-border/50 px-3 py-2 text-center text-xs font-medium text-foreground">
+                  {["Music", "Art", "Photo"].map((cat) => (
+                    <div
+                      key={cat}
+                      className="rounded-xl bg-background/50 backdrop-blur border border-border/50 px-3 py-2 text-center text-xs font-medium text-foreground"
+                    >
                       {cat}
                     </div>
                   ))}

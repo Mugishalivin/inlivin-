@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
-import { Menu, X, User, Clock3 } from "lucide-react";
+import { Menu, X, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { formatDistanceToNow } from "date-fns";
 
 const navLinks = [
   { label: "Features", href: "/#features" },
@@ -16,33 +14,8 @@ const navLinks = [
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
-  const [logoutAgo, setLogoutAgo] = useState<string | null>(null);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const update = () => {
-      const raw = localStorage.getItem("logout_at");
-      if (!raw) {
-        setLogoutAgo(null);
-        return;
-      }
-      const date = new Date(raw);
-      if (Number.isNaN(date.getTime())) {
-        setLogoutAgo(null);
-        return;
-      }
-      setLogoutAgo(`Logged out ${formatDistanceToNow(date, { addSuffix: true })}`);
-    };
-
-    update();
-    const timer = window.setInterval(update, 60000);
-    window.addEventListener("storage", update);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("storage", update);
-    };
-  }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
@@ -65,7 +38,6 @@ export function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-2">
-          <ThemeToggle />
           {user ? (
             <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="gap-2">
               <User size={16} />
@@ -73,12 +45,6 @@ export function Navbar() {
             </Button>
           ) : (
             <div className="flex items-center gap-2">
-              {logoutAgo && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/70 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-md">
-                  <Clock3 size={12} />
-                  {logoutAgo}
-                </span>
-              )}
               <Button variant="ghost" size="sm" onClick={() => navigate("/login")}>Sign In</Button>
               <Button variant="hero" size="sm" onClick={() => navigate("/register")}>Get Started</Button>
             </div>
@@ -86,7 +52,6 @@ export function Navbar() {
         </div>
 
         <div className="flex md:hidden items-center gap-2">
-          <ThemeToggle />
           <button className="text-foreground" onClick={() => setOpen(!open)}>
             {open ? <X size={22} /> : <Menu size={22} />}
           </button>

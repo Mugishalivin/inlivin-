@@ -26,6 +26,12 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Force light theme on homepage
+    document.documentElement.classList.add("light");
+    document.documentElement.classList.remove("dark");
+  }, []);
+
+  useEffect(() => {
     if (!loading && user) {
       if ((role === "admin" || authRole === "admin") && !adminViewMode) {
         navigate("/continue-as", { replace: true });
@@ -38,7 +44,7 @@ const Index = () => {
   }, [user, loading, navigate, role, adminViewMode, authRole]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white text-gray-900">
       <Navbar />
       <HeroSection />
       <Suspense fallback={null}>
@@ -46,7 +52,6 @@ const Index = () => {
       </Suspense>
       <div className="section-divider" />
       <FeaturesSection />
-      <div className="section-divider" />
       <Suspense fallback={null}>
         <Creator3DChain />
       </Suspense>
