@@ -1,8 +1,10 @@
-import Hero3DScene from "@/components/Hero3DScene";
+import { lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+const Hero3DScene = lazy(() => import("@/components/Hero3DScene"));
 
 const marqueeItems = [
   "Musicians", "Producers", "Designers", "Photographers", "Filmmakers",
@@ -15,7 +17,9 @@ export function HeroSection() {
   return (
     <section className="relative min-h-screen flex flex-col justify-center pt-16 overflow-hidden">
       {/* 3D Background */}
-      <Hero3DScene />
+      <Suspense fallback={null}>
+        <Hero3DScene />
+      </Suspense>
 
       {/* Gradient overlay for readability */}
       <div className="absolute inset-0 z-[1] bg-gradient-to-b from-background/60 via-background/40 to-background pointer-events-none" />
