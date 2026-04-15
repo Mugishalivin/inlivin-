@@ -33,8 +33,7 @@ export default function AdminSettingsPage() {
     queryKey: ["admin", "settings", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from("admin_settings")
+      const { data, error } = await (supabase.from as any)("admin_settings")
         .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
@@ -42,7 +41,7 @@ export default function AdminSettingsPage() {
         console.error("Error loading admin settings:", error);
         return null;
       }
-      return data as AdminSettings | null;
+      return data as unknown as AdminSettings | null;
     },
     enabled: !!user?.id,
   });
@@ -53,15 +52,14 @@ export default function AdminSettingsPage() {
     try {
       if (!adminSettings?.id) {
         // Create new settings entry
-        const { error } = await supabase.from("admin_settings").insert({
+        const { error } = await (supabase.from as any)("admin_settings").insert({
           user_id: user.id,
           [key]: value,
         });
         if (error) throw error;
       } else {
         // Update existing settings
-        const { error } = await supabase
-          .from("admin_settings")
+        const { error } = await (supabase.from as any)("admin_settings")
           .update({ [key]: value, updated_at: new Date().toISOString() })
           .eq("id", adminSettings.id);
         if (error) throw error;

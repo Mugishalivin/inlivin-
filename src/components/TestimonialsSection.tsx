@@ -1,6 +1,6 @@
 import { Star, Quote } from "lucide-react";
 
-export function TestimonialsSection() {
+export default function TestimonialsSection() {
   const testimonials = [
     {
       text: "inlivin completely transformed how I monetize my music. The platform is intuitive and the community is incredible.",

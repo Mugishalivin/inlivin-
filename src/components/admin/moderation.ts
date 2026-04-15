@@ -4,11 +4,12 @@
  */
 export const scanContentForViolations = async (text: string) => {
   try {
+    const apiKey = (typeof globalThis !== 'undefined' && (globalThis as any).process?.env?.OPENAI_API_KEY) || '';
     const response = await fetch('https://api.openai.com/v1/moderations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ input: text }),
     });

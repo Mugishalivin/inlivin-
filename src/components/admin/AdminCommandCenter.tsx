@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -168,7 +169,7 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
   // Mutation wrappers with cache invalidation
   const handleMutationUpdate = async (table: string, id: string, data: Partial<any>) => {
     try {
-      const { error } = await supabase.from(table).update(data).eq("id", id);
+      const { error } = await (supabase.from as any)(table).update(data).eq("id", id);
       if (error) {
         toast.error(`Failed to update: ${error.message}`);
         return false;
@@ -184,7 +185,7 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
 
   const handleMutationDelete = async (table: string, id: string) => {
     try {
-      const { error } = await supabase.from(table).delete().eq("id", id);
+      const { error } = await (supabase.from as any)(table).delete().eq("id", id);
       if (error) {
         toast.error(`Failed to delete: ${error.message}`);
         return false;
@@ -252,9 +253,9 @@ export function AdminCommandCenter({ mode = "overview" }: { mode?: Mode }) {
 
   const contentItems = useMemo<ContentItem[]>(
     () => [
-      ...(announcements as any[]).map((item) => ({ id: item.id, type: "announcement", title: item.title, content: item.content, is_active: item.is_active, created_at: item.created_at, media_url: item.media_url, media_type: item.media_type, created_by: item.created_by })),
-      ...(promotions as any[]).map((item) => ({ id: item.id, type: "promotion", title: item.title, content: item.content, is_active: item.is_active, created_at: item.created_at, media_url: item.media_url, media_type: item.media_type, created_by: item.created_by, discount_percentage: item.discount_percentage, valid_until: item.valid_until })),
-      ...(ads as any[]).map((item) => ({ id: item.id, type: "ad", title: item.title, content: item.content, is_active: item.is_active, created_at: item.created_at, media_url: item.media_url, media_type: item.media_type, created_by: item.created_by, image_url: item.image_url, link_url: item.link_url, target_audience: item.target_audience })),
+      ...(announcements as any[]).map((item: any) => ({ id: item.id, type: "announcement" as const, title: item.title, content: item.content, is_active: item.is_active, created_at: item.created_at, media_url: item.media_url, media_type: item.media_type, created_by: item.created_by })),
+      ...(promotions as any[]).map((item: any) => ({ id: item.id, type: "promotion" as const, title: item.title, content: item.content, is_active: item.is_active, created_at: item.created_at, media_url: item.media_url, media_type: item.media_type, created_by: item.created_by, discount_percentage: item.discount_percentage, valid_until: item.valid_until })),
+      ...(ads as any[]).map((item: any) => ({ id: item.id, type: "ad" as const, title: item.title, content: item.content, is_active: item.is_active, created_at: item.created_at, media_url: item.media_url, media_type: item.media_type, created_by: item.created_by, image_url: item.image_url, link_url: item.link_url, target_audience: item.target_audience })),
     ],
     [announcements, promotions, ads],
   );

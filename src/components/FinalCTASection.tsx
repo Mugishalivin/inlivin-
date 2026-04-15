@@ -1,6 +1,8 @@
 import { ArrowRight, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-export function FinalCTASection() {
+export default function FinalCTASection() {
+  const navigate = useNavigate();
   return (
     <section className="py-24 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 relative overflow-hidden">
       {/* Animated background elements */}
@@ -21,7 +23,7 @@ export function FinalCTASection() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="group relative overflow-hidden px-8 py-4 rounded-lg bg-primary text-primary-foreground font-bold text-lg transition-all duration-300 hover:shadow-2xl hover:shadow-primary/50 transform hover:-translate-y-1">
+            <button onClick={() => navigate("/register")} className="group relative overflow-hidden px-8 py-4 rounded-lg bg-primary text-primary-foreground font-bold text-lg transition-all duration-300 hover:shadow-2xl hover:shadow-primary/50 transform hover:-translate-y-1">
               <div className="absolute inset-0 bg-gradient-to-r from-primary to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <div className="relative flex items-center justify-center gap-2">
                 Get Started Free
@@ -29,7 +31,7 @@ export function FinalCTASection() {
               </div>
             </button>
 
-            <button className="group px-8 py-4 rounded-lg border-2 border-primary text-primary hover:bg-primary/10 font-bold text-lg transition-all duration-300 flex items-center justify-center gap-2">
+            <button onClick={() => navigate("/docs")} className="group px-8 py-4 rounded-lg border-2 border-primary text-primary hover:bg-primary/10 font-bold text-lg transition-all duration-300 flex items-center justify-center gap-2">
               View Documentation
               <ArrowRight
                 size={20}

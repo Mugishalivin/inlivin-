@@ -1,6 +1,6 @@
 import { Play } from "lucide-react";
 
-export function VideoShowcaseSection() {
+export default function VideoShowcaseSection() {
   const videos = [
     {
       title: "Getting Started Guide",

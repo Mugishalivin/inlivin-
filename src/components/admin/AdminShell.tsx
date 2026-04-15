@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { ArrowRightLeft, Database, FileClock, LayoutDashboard, Menu, MonitorUp, Moon, PanelLeftClose, PanelLeftOpen, Rocket, SunMedium, Users2, Shield, Zap, Workflow, BarChart3, FileText, Activity, Settings, Medal } from "lucide-react";
+import { ArrowRightLeft, Database, FileClock, LayoutDashboard, Menu, MonitorUp, Moon, PanelLeftClose, PanelLeftOpen, Rocket, SunMedium, Users2, Shield, Zap, Workflow, BarChart3, FileText, Activity, Settings, Medal, Bell, HeartPulse } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,12 +23,14 @@ const adminSections = [
     label: "Content",
     items: [
       { title: "Content", url: "/admin/content", icon: Database, badge: "content" },
+      { title: "Notifications", url: "/admin/notifications", icon: Bell },
       { title: "Reports", url: "/admin/reports", icon: FileClock, badge: "reports" },
     ],
   },
   {
     label: "System",
     items: [
+      { title: "Health", url: "/admin/health", icon: HeartPulse },
       { title: "Monitoring", url: "/admin/monitoring", icon: MonitorUp, badge: "monitoring" },
       { title: "Operations", url: "/admin/operations", icon: Rocket, badge: "operations" },
       { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },

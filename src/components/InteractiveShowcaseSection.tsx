@@ -1,6 +1,6 @@
 import { Rotating3DObject } from "./Rotating3DObject";
 
-export function InteractiveShowcaseSection() {
+export default function InteractiveShowcaseSection() {
   return (
     <section className="py-20 bg-gradient-to-b from-muted/50 to-background relative overflow-hidden">
       {/* Animated background elements */}

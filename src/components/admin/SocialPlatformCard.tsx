@@ -52,8 +52,8 @@ export function SocialPlatformCard({ platform }: { platform: any }) {
           {platform.description || "Track publishing and moderation performance across your main channels."}
         </p>
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <MiniMetric label="Audience" value={platform.audience || "n/a"} />
-          <MiniMetric label="Reach" value={platform.reach || "n/a"} />
+          <div className="rounded-lg border border-white/10 bg-white/5 p-2"><div className="text-[10px] text-slate-400">Audience</div><div className="text-sm text-white">{platform.audience || "n/a"}</div></div>
+          <div className="rounded-lg border border-white/10 bg-white/5 p-2"><div className="text-[10px] text-slate-400">Reach</div><div className="text-sm text-white">{platform.reach || "n/a"}</div></div>
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400">

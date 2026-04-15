@@ -529,7 +529,7 @@ export default function PowerfulAdminSettingsPage() {
         .order('created_at', { ascending: false })
         .limit(20);
       if (error) throw error;
-      return (data || []) as AuditLog[];
+      return (data || []) as unknown as AuditLog[];
     },
   });
 

@@ -1,6 +1,6 @@
 import { Music, Palette, Video, Code, Book, Gamepad2 } from "lucide-react";
 
-export function UseCasesSection() {
+export default function UseCasesSection() {
   const useCases = [
     {
       icon: <Music size={40} />,

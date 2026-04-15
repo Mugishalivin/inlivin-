@@ -1,7 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
-export function FAQSection() {
+export default function FAQSection() {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
 
   const faqs = [

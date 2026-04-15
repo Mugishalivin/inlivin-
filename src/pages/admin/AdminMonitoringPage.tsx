@@ -47,12 +47,12 @@ export default function AdminMonitoringPage() {
   const commentCount = (updateComments as any[]).length;
 
   const emitHeartbeat = async () => {
-    await supabase.from("admin_monitoring_events").insert([
+    await (supabase.from as any)("admin_monitoring_events").insert([
       {
         event_type: "heartbeat",
         severity: "info",
-        source: "admin",
-        message: "Admin page heartbeat received",
+        title: "Admin page heartbeat received",
+        details: { source: "admin" },
       },
     ]);
     queryClient.invalidateQueries({ queryKey: ["admin", "monitoring-events"] });

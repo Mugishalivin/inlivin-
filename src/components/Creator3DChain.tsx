@@ -27,60 +27,70 @@ const Creator3DChain = () => {
 
   const categories: Category[] = [
     {
+      id: 1,
       name: 'Musicians',
       icon: <Music size={32} />,
       color: 'from-red-500 to-pink-500',
       gradient: 'bg-gradient-to-br from-red-500 via-pink-500 to-red-600'
     },
     {
+      id: 2,
       name: 'Designers',
       icon: <Palette size={32} />,
       color: 'from-purple-500 to-indigo-500',
       gradient: 'bg-gradient-to-br from-purple-500 via-indigo-500 to-purple-600'
     },
     {
+      id: 3,
       name: 'Developers',
       icon: <Code size={32} />,
       color: 'from-blue-500 to-cyan-500',
       gradient: 'bg-gradient-to-br from-blue-500 via-cyan-500 to-blue-600'
     },
     {
+      id: 4,
       name: 'Producers',
       icon: <Zap size={32} />,
       color: 'from-yellow-500 to-orange-500',
       gradient: 'bg-gradient-to-br from-yellow-500 via-orange-500 to-yellow-600'
     },
     {
+      id: 5,
       name: 'Photographers',
       icon: <Camera size={32} />,
       color: 'from-green-500 to-emerald-500',
       gradient: 'bg-gradient-to-br from-green-500 via-emerald-500 to-green-600'
     },
     {
+      id: 6,
       name: 'Writers',
       icon: <Pen size={32} />,
       color: 'from-amber-500 to-orange-500',
       gradient: 'bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600'
     },
     {
+      id: 7,
       name: 'Game Developers',
       icon: <Gamepad2 size={32} />,
       color: 'from-pink-500 to-rose-500',
       gradient: 'bg-gradient-to-br from-pink-500 via-rose-500 to-pink-600'
     },
     {
+      id: 8,
       name: 'Technicians',
       icon: <Cpu size={32} />,
       color: 'from-slate-600 to-gray-600',
       gradient: 'bg-gradient-to-br from-slate-600 via-gray-600 to-slate-700'
     },
     {
+      id: 9,
       name: 'Storytellers',
       icon: <BookOpen size={32} />,
       color: 'from-teal-500 to-cyan-500',
       gradient: 'bg-gradient-to-br from-teal-500 via-cyan-500 to-teal-600'
     },
     {
+      id: 10,
       name: 'Scientists',
       icon: <Microscope size={32} />,
       color: 'from-violet-500 to-purple-500',
