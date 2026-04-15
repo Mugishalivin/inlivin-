@@ -1,31 +1,8 @@
-import { Component, ReactNode } from "react";
+import Hero3DScene from "@/components/Hero3DScene";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import Hero3DScene from "@/components/Hero3DScene";
-
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    console.error("3D Scene Error:", error);
-    return { hasError: true };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      // Show fallback instead of hiding
-      return (
-        <div className="absolute inset-0 z-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const marqueeItems = [
   "Musicians", "Producers", "Designers", "Photographers", "Filmmakers",
@@ -38,9 +15,7 @@ export function HeroSection() {
   return (
     <section className="relative min-h-screen flex flex-col justify-center pt-16 overflow-hidden">
       {/* 3D Background */}
-      <ErrorBoundary>
-        <Hero3DScene />
-      </ErrorBoundary>
+      <Hero3DScene />
 
       {/* Gradient overlay for readability */}
       <div className="absolute inset-0 z-[1] bg-gradient-to-b from-background/60 via-background/40 to-background pointer-events-none" />
