@@ -188,11 +188,9 @@ export default function ContentDetailPage() {
                 src={mediaUrl}
                 autoPlay
                 muted
-                defaultMuted
                 loop
                 playsInline
                 preload="auto"
-                disablePictureInPicture
                 controls={false}
                 className="absolute inset-0 h-full w-full object-cover brightness-[0.28] contrast-110 saturate-90 scale-105"
               />
