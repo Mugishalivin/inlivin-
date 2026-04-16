@@ -42,7 +42,7 @@ export default function ContentDetailPage() {
         .eq("id", contentId)
         .single();
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!tableName && !!contentId,
   });
