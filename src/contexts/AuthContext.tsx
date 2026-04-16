@@ -268,12 +268,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setImpersonationTargetState(target);
     sessionStorage.setItem("impersonation_target", JSON.stringify(target));
     if (authUser && authRole === "admin") {
-      void supabase.from("admin_impersonation_sessions").insert([
+      void (supabase as any).from("admin_impersonation_sessions").insert([
         {
           admin_id: authUser.id,
           target_user_id: target.userId,
-          reason: target.label,
-          is_active: true,
+          notes: target.label,
         },
       ]);
     }
@@ -281,12 +280,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const stopImpersonation = () => {
     if (authUser && authRole === "admin" && impersonationTarget) {
-      void supabase
+      void (supabase as any)
         .from("admin_impersonation_sessions")
-        .update({ is_active: false, ended_at: new Date().toISOString() })
+        .update({ status: "ended", ended_at: new Date().toISOString() })
         .eq("admin_id", authUser.id)
         .eq("target_user_id", impersonationTarget.userId)
-        .eq("is_active", true);
+        .eq("status", "active");
     }
     setImpersonationTargetState(null);
     sessionStorage.removeItem("impersonation_target");

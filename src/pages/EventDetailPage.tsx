@@ -608,9 +608,9 @@ export default function EventDetailPage() {
                 )}
                 
                 {/* Age Restriction */}
-                {event?.age_restriction && (
+                {(event as any)?.age_restriction && (
                   <div className="text-xs text-muted-foreground">
-                    <span className="font-medium">Age: </span>{event.age_restriction}
+                    <span className="font-medium">Age: </span>{(event as any).age_restriction}
                   </div>
                 )}
 

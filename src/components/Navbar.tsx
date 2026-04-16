@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -84,12 +84,6 @@ export function Navbar() {
                   </Button>
                 ) : (
                   <div className="flex flex-col gap-2 flex-1">
-                    {logoutAgo && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/70 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-md">
-                        <Clock3 size={12} />
-                        {logoutAgo}
-                      </span>
-                    )}
                     <Button variant="ghost" size="sm" className="flex-1" onClick={() => { navigate("/login"); setOpen(false); }}>Sign In</Button>
                     <Button variant="hero" size="sm" className="flex-1" onClick={() => { navigate("/register"); setOpen(false); }}>Get Started</Button>
                   </div>

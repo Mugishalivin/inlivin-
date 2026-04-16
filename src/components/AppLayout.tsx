@@ -4,19 +4,38 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, Menu } from "lucide-react";
+import { Shield, Menu, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export function AppLayout() {
   const { impersonationTarget, stopImpersonation, setAdminViewMode, authRole, readOnlyPreview } = useAuth();
   const isMobile = useIsMobile();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, []);
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>
       <div className="min-h-screen flex w-full">
-        <AppSidebar onItemSelected={() => isMobile && setSidebarOpen(false)} />
+        {/* Desktop sidebar */}
+        {!isMobile && <AppSidebar onItemSelected={() => {}} />}
+
+        {/* Mobile sidebar via Sheet */}
+        {isMobile && (
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetContent side="left" className="p-0 w-[280px] border-r border-border">
+              <div className="h-full overflow-y-auto">
+                <AppSidebar onItemSelected={() => setMobileOpen(false)} />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
+
         <div className="flex-1 flex flex-col min-w-0">
           {impersonationTarget && (
             <div className="border-b border-primary/20 bg-primary/10 px-4 py-2 text-sm text-foreground">
@@ -47,7 +66,7 @@ export function AppLayout() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  onClick={() => setMobileOpen(true)}
                   className="h-8 w-8 p-0"
                 >
                   <Menu className="h-5 w-5" />
