@@ -186,7 +186,8 @@ const App = () => (
                 }
               >
                 <Route path="/dashboard" element={<AdminAwareDashboardRoute />} />
-                <Route path="/feed" element={<FeedPage />} />
+                <Route path="/feed" element={<Navigate to="/posts" replace />} />
+                <Route path="/posts" element={<PostsPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
                 <Route path="/messages" element={<MessagesPage />} />
