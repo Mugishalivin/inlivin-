@@ -201,7 +201,7 @@ const App = () => (
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/profile/:userId" element={<UserProfilePage />} />
                 <Route path="/studio" element={<ContentPipelinePage />} />
-                <Route path="/updates" element={<UpdatesPage />} />
+                <Route path="/updates" element={<Navigate to="/posts" replace />} />
                 <Route path="/marketplace" element={<MarketplacePage />} />
                 <Route path="/marketplace/:itemId" element={<MarketplaceDetailPage />} />
                 <Route path="/selling/:itemId" element={<MarketplaceDetailPage />} />
