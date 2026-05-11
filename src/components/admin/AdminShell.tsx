@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { BarChart3, Bell, Database, FileText, HeartPulse, LayoutDashboard, Medal, Menu, Moon, PanelLeftClose, PanelLeftOpen, Settings, SunMedium, Users2, X, ArrowRightLeft, FileClock, ChevronRight } from "lucide-react";
+import { BarChart3, Bell, Database, FileText, HeartPulse, LayoutDashboard, Medal, Menu, Moon, PanelLeftClose, PanelLeftOpen, Settings, SunMedium, Users2, X, ArrowRightLeft, FileClock, ChevronRight, Search } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,6 +34,7 @@ const adminSections = [
     items: [
       { title: "Health", url: "/admin/health", icon: HeartPulse },
       { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
+      { title: "Lookup", url: "/admin/lookup", icon: Search },
     ],
   },
   {
