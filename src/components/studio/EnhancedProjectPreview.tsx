@@ -119,7 +119,7 @@ export function EnhancedProjectPreview({
                   transition={{ delay: 0.1 }}
                 >
                   <Gallery3D
-                    items={allMediaAssets}
+                    items={allMediaAssets as any}
                     onFullscreen={(item) => setFullscreenItem(item)}
                   />
                 </motion.div>
