@@ -323,13 +323,13 @@ export default function StudioProjectPage() {
           {/* 3D Gallery Tab */}
           {has3DAssets && (
             <TabsContent value="3d" className="mt-6">
-              <Gallery3D {...({} as any)}
-                assets={assets.filter(
+              <Gallery3D
+                {...({ assets: assets.filter(
                   (a) =>
                     a.file_type?.includes("3d") ||
                     a.file_type?.includes("obj") ||
                     a.file_type?.includes("glb")
-                )}
+                ) } as any)}
               />
             </TabsContent>
           )}
