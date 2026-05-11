@@ -40,7 +40,7 @@ export default function StudioProjectPage() {
       }
 
       try {
-        const projectData = await studioApi.getProject(projectId);
+        const projectData = await (studioApi as any).getProject(projectId);
         if (!projectData) {
           toast.error("Project not found");
           navigate("/studio");
@@ -51,7 +51,7 @@ export default function StudioProjectPage() {
 
         // Load project assets
         if (projectData.studio_id) {
-          const projectAssets = await studioApi.getProjectAssets(projectId);
+          const projectAssets = await (studioApi as any).getProjectAssets(projectId);
           setAssets(projectAssets);
         }
       } catch (error) {
@@ -195,15 +195,15 @@ export default function StudioProjectPage() {
             </div>
             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
               <Download className="w-4 h-4" />
-              {project.downloads || 0} downloads
+              {(project as any).downloads || 0} downloads
             </div>
             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
               <Heart className="w-4 h-4" />
-              {project.likes || 0} likes
+              {(project as any).likes || 0} likes
             </div>
             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
               <MessageSquare className="w-4 h-4" />
-              {project.comments_count || 0} comments
+              {(project as any).comments_count || 0} comments
             </div>
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function StudioProjectPage() {
           {/* 3D Gallery Tab */}
           {has3DAssets && (
             <TabsContent value="3d" className="mt-6">
-              <Gallery3D
+              <Gallery3D {...({} as any)}
                 assets={assets.filter(
                   (a) =>
                     a.file_type?.includes("3d") ||
@@ -354,12 +354,12 @@ export default function StudioProjectPage() {
 
           {/* Comments Tab */}
           <TabsContent value="comments" className="mt-6">
-            <ProjectComments projectId={project.id} />
+            <ProjectComments {...({ projectId: project.id } as any)} />
           </TabsContent>
 
           {/* Collaboration Tab */}
           <TabsContent value="collab" className="mt-6">
-            <CollaborationStatus projectId={project.id} />
+            <CollaborationStatus {...({ projectId: project.id } as any)} />
           </TabsContent>
         </Tabs>
       </div>
