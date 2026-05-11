@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseRaw } from "@/integrations/supabase/client";
+const supabase: any = supabaseRaw;
 import { toast } from "sonner";
 import { 
   Bell, Volume2, Shield, Lock, Trash2, AlertTriangle, 

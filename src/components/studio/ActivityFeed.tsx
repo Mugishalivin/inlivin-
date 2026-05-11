@@ -50,7 +50,7 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
           const isLast = index === activities.length - 1;
           const displayName =
             activity.user?.user_metadata?.display_name ||
-            activity.user?.email ||
+            (activity.user as any)?.email ||
             "Unknown User";
 
           return (

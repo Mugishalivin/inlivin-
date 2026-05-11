@@ -30,6 +30,7 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import MessagesPage from "./pages/MessagesPage";
 import ExplorePage from "./pages/ExplorePage";
 import FeedPage from "./pages/FeedPage";
+import PostsPage from "./pages/PostsPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import CreateEventPage from "./pages/CreateEventPage";
 import EventsPage from "./pages/EventsPage";
@@ -185,7 +186,8 @@ const App = () => (
                 }
               >
                 <Route path="/dashboard" element={<AdminAwareDashboardRoute />} />
-                <Route path="/feed" element={<FeedPage />} />
+                <Route path="/feed" element={<Navigate to="/posts" replace />} />
+                <Route path="/posts" element={<PostsPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
                 <Route path="/messages" element={<MessagesPage />} />
@@ -199,7 +201,7 @@ const App = () => (
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/profile/:userId" element={<UserProfilePage />} />
                 <Route path="/studio" element={<ContentPipelinePage />} />
-                <Route path="/updates" element={<UpdatesPage />} />
+                <Route path="/updates" element={<Navigate to="/posts" replace />} />
                 <Route path="/marketplace" element={<MarketplacePage />} />
                 <Route path="/marketplace/:itemId" element={<MarketplaceDetailPage />} />
                 <Route path="/selling/:itemId" element={<MarketplaceDetailPage />} />
