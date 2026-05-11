@@ -766,29 +766,46 @@ export type Database = {
       creator_badges: {
         Row: {
           awarded_at: string | null
+          awarded_by: string | null
           badge_type: string
-          created_at: string | null
-          creator_id: string
+          category: string | null
+          earned_at: string | null
           id: string
+          is_active: boolean | null
           reason: string | null
+          user_id: string
         }
         Insert: {
           awarded_at?: string | null
+          awarded_by?: string | null
           badge_type: string
-          created_at?: string | null
-          creator_id: string
+          category?: string | null
+          earned_at?: string | null
           id?: string
+          is_active?: boolean | null
           reason?: string | null
+          user_id: string
         }
         Update: {
           awarded_at?: string | null
+          awarded_by?: string | null
           badge_type?: string
-          created_at?: string | null
-          creator_id?: string
+          category?: string | null
+          earned_at?: string | null
           id?: string
+          is_active?: boolean | null
           reason?: string | null
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "creator_badges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       creator_network: {
         Row: {
