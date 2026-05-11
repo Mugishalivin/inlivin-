@@ -1,7 +1,7 @@
 import {
   Home, FolderOpen, MessageCircle, Compass, Settings, LogOut, User,
-  Bell, Globe, Calendar, BarChart3, Bookmark, Layers3, Users, Megaphone,
-  LayoutDashboard, FileText, Workflow, Shield, Activity, Zap, Database, ArrowLeftRight,
+  Bell, Globe, Calendar, BarChart3, Bookmark, Users, Megaphone,
+  LayoutDashboard, FileText, Shield, Activity, Database, ArrowLeftRight,
   ShoppingCart, TrendingUp, Radio, Sparkles
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -38,7 +38,7 @@ const mainNav = [
 
 const secondaryNav = [
   { title: "Events", url: "/events", icon: Calendar },
-  { title: "Studio", url: "/studio", icon: Layers3 },
+  { title: "Studio", url: "/studio", icon: Sparkles },
   { title: "Notifications", url: "/notifications", icon: Bell },
   { title: "Bookmarks", url: "/bookmarks", icon: Bookmark },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
@@ -71,11 +71,8 @@ const adminNav = [
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "System", url: "/admin/analytics", icon: Database },
   { title: "Monitoring", url: "/admin/monitoring", icon: Activity },
-  { title: "Operations", url: "/admin/operations", icon: Zap },
   { title: "Security", url: "/admin/security", icon: Shield },
-  { title: "Workflows", url: "/admin/workflows", icon: Workflow },
-  { title: "Integrations", url: "/admin/integrations", icon: Layers3 },
-  { title: "Audit", url: "/admin/audit", icon: FileText },
+  { title: "Lookup", url: "/admin/lookup", icon: Compass },
 ];
 
 export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) {
@@ -164,7 +161,7 @@ export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) 
       "Content": "flaggedContent",
       "Security": "securityAlerts",
       "Monitoring": "recentAuditLogs",
-      "Audit": "totalAdminActions",
+      "Lookup": "totalAdminActions",
     };
 
     const metric = sectionMap[itemTitle];

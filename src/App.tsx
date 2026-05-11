@@ -20,14 +20,9 @@ import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminContentPage from "./pages/admin/AdminContentPage";
 import AdminImpersonatePage from "./pages/admin/AdminImpersonatePage";
-import AdminMonitoringPage from "./pages/admin/AdminMonitoringPage";
-import AdminOperationsPage from "./pages/admin/AdminOperationsPage";
 import AdminReportsPage from "./pages/admin/AdminReportsPage";
-import AdminSecurityPage from "./pages/admin/AdminSecurityPage";
-import AdminIntegrationsPage from "./pages/admin/AdminIntegrationsPage";
 import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
-import AdminAuditPage from "./pages/admin/AdminAuditPage";
-import AdminWorkflowsPage from "./pages/admin/AdminWorkflowsPage";
+import AdminLookupPage from "./pages/admin/AdminLookupPage";
 import PowerfulAdminSettingsPage from "./pages/admin/PowerfulAdminSettingsPage";
 import { AdminBadgesPage } from "./pages/admin/AdminBadgesPage";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -39,6 +34,8 @@ import EventDetailPage from "./pages/EventDetailPage";
 import CreateEventPage from "./pages/CreateEventPage";
 import EventsPage from "./pages/EventsPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import AdminNotificationsPage from "./pages/admin/AdminNotificationsPage";
+import AdminHealthPage from "./pages/admin/AdminHealthPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import BookmarksPage from "./pages/BookmarksPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -172,13 +169,10 @@ const App = () => (
                   <Route path="impersonate" element={<AdminImpersonatePage />} />
                   <Route path="content" element={<AdminContentPage />} />
                   <Route path="reports" element={<AdminReportsPage />} />
-                  <Route path="monitoring" element={<AdminMonitoringPage />} />
-                  <Route path="operations" element={<AdminOperationsPage />} />
-                  <Route path="security" element={<AdminSecurityPage />} />
-                  <Route path="integrations" element={<AdminIntegrationsPage />} />
                   <Route path="analytics" element={<AdminAnalyticsPage />} />
-                  <Route path="audit" element={<AdminAuditPage />} />
-                  <Route path="workflows" element={<AdminWorkflowsPage />} />
+                  <Route path="notifications" element={<AdminNotificationsPage />} />
+                  <Route path="health" element={<AdminHealthPage />} />
+                  <Route path="lookup" element={<AdminLookupPage />} />
                   <Route path="badges" element={<AdminBadgesPage />} />
                   <Route path="settings" element={<PowerfulAdminSettingsPage />} />
                 </Route>

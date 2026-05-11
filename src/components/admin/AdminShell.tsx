@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { BarChart3, Bell, Database, FileText, HeartPulse, LayoutDashboard, Medal, Menu, MonitorUp, Moon, PanelLeftClose, PanelLeftOpen, Rocket, Settings, Shield, SunMedium, Users2, Workflow, X, Zap, ArrowRightLeft, FileClock, ChevronRight } from "lucide-react";
+import { BarChart3, Bell, Database, FileText, HeartPulse, LayoutDashboard, Medal, Menu, Moon, PanelLeftClose, PanelLeftOpen, Settings, SunMedium, Users2, X, ArrowRightLeft, FileClock, ChevronRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,18 +33,12 @@ const adminSections = [
     label: "System",
     items: [
       { title: "Health", url: "/admin/health", icon: HeartPulse },
-      { title: "Monitoring", url: "/admin/monitoring", icon: MonitorUp },
-      { title: "Operations", url: "/admin/operations", icon: Rocket },
       { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
-      { title: "Audit", url: "/admin/audit", icon: FileText },
     ],
   },
   {
     label: "Configuration",
     items: [
-      { title: "Security", url: "/admin/security", icon: Shield },
-      { title: "Integrations", url: "/admin/integrations", icon: Zap },
-      { title: "Workflows", url: "/admin/workflows", icon: Workflow },
       { title: "Badges", url: "/admin/badges", icon: Medal },
       { title: "Settings", url: "/admin/settings", icon: Settings },
     ],

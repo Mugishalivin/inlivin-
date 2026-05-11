@@ -87,13 +87,15 @@ export default function FeedPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("projects")
-        .select("*")
+        .select("id, title, description, tags, cover_url, created_at, user_id, is_public")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
         .limit(30);
       return data ?? [];
     },
     enabled: !!user,
+    staleTime: 60000,
+    refetchInterval: 300000,
   });
 
   const { data: allProjectMeta = [] } = useQuery({
@@ -108,6 +110,8 @@ export default function FeedPage() {
       return data ?? [];
     },
     enabled: !!user,
+    staleTime: 60000,
+    refetchInterval: 300000,
   });
   const popularTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -308,6 +312,8 @@ export default function FeedPage() {
       return result;
     },
     enabled: projects.length > 0,
+    staleTime: 60000,
+    refetchInterval: 300000,
   });
 
   const { data: myLikes = [] } = useQuery({
@@ -317,6 +323,8 @@ export default function FeedPage() {
       return (data ?? []).map((l) => l.project_id);
     },
     enabled: !!user,
+    staleTime: 30000,
+    refetchInterval: 120000,
   });
 
   const { data: likeCounts = {} } = useQuery({
@@ -326,13 +334,15 @@ export default function FeedPage() {
       for (const p of projects) {
         const { count } = await supabase
           .from("likes")
-          .select("*", { count: "exact", head: true })
+          .select("id", { count: "exact", head: true })
           .eq("project_id", p.id);
         counts[p.id] = count ?? 0;
       }
       return counts;
     },
     enabled: projects.length > 0,
+    staleTime: 30000,
+    refetchInterval: 180000,
   });
 
   const { data: myBookmarks = [] } = useQuery({
@@ -342,6 +352,8 @@ export default function FeedPage() {
       return (data ?? []).map((b) => b.project_id);
     },
     enabled: !!user,
+    staleTime: 30000,
+    refetchInterval: 120000,
   });
 
   const { data: commentCounts = {} } = useQuery({
@@ -351,13 +363,15 @@ export default function FeedPage() {
       for (const p of projects) {
         const { count } = await supabase
           .from("comments")
-          .select("*", { count: "exact", head: true })
+          .select("id", { count: "exact", head: true })
           .eq("project_id", p.id);
         counts[p.id] = count ?? 0;
       }
       return counts;
     },
     enabled: projects.length > 0,
+    staleTime: 30000,
+    refetchInterval: 180000,
   });
 
   const { data: commentsData = [] } = useQuery({
@@ -365,7 +379,7 @@ export default function FeedPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("comments")
-        .select("*")
+        .select("id, project_id, user_id, content, created_at")
         .eq("project_id", expandedComments!)
         .order("created_at", { ascending: true })
         .limit(20);
@@ -383,6 +397,7 @@ export default function FeedPage() {
       return comments.map((c) => ({ ...c, profile: profiles[c.user_id] }));
     },
     enabled: !!expandedComments,
+    staleTime: 30000,
   });
 
   const likeMutation = useMutation({

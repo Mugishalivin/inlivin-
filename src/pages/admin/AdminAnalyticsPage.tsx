@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { fetchAdminProfiles } from "@/lib/admin-profiles";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Activity, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function AdminAnalyticsPage() {
   const { data: profiles = [] } = useQuery({
@@ -59,6 +60,15 @@ export default function AdminAnalyticsPage() {
     { name: "Calls", value: (sessions as any[]).length },
     { name: "Audit", value: (auditLogs as any[]).length },
   ], [announcements, sessions, auditLogs]);
+
+  const sessionHealth = useMemo(() => {
+    const totalSessions = (sessions as any[]).length || 1;
+    const activeSessions = (sessions as any[]).filter((s: any) => s.status === "active").length;
+    const failedSessions = (sessions as any[]).filter((s: any) => s.status === "failed").length;
+    const successRate = totalSessions > 0 ? Math.round(((totalSessions - failedSessions) / totalSessions) * 100) : 100;
+    
+    return { activeSessions, failedSessions, totalSessions, successRate };
+  }, [sessions]);
 
   return (
     <div className="space-y-6">
@@ -114,6 +124,51 @@ export default function AdminAnalyticsPage() {
                 <Bar dataKey="value" fill="#22d3ee" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/10 bg-white/6 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Activity className="h-5 w-5 text-green-400" />
+              Session Health
+            </CardTitle>
+            <CardDescription className="text-slate-300">A quick status bar for session activity.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-white">Success Rate</span>
+                <span className="text-lg font-bold text-green-400">{sessionHealth.successRate}%</span>
+              </div>
+              <Progress value={sessionHealth.successRate} className="h-2" />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
+                <div className="text-2xl font-black text-cyan-400">{sessionHealth.activeSessions}</div>
+                <div className="text-xs uppercase tracking-widest text-slate-400 mt-1">Active</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
+                <div className="text-2xl font-black text-red-400">{sessionHealth.failedSessions}</div>
+                <div className="text-xs uppercase tracking-widest text-slate-400 mt-1">Failed</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
+                <div className="text-2xl font-black text-purple-400">{sessionHealth.totalSessions}</div>
+                <div className="text-xs uppercase tracking-widest text-slate-400 mt-1">Total</div>
+              </div>
+            </div>
+
+            <div className={`flex items-center gap-2 rounded-lg border p-3 ${sessionHealth.successRate > 95 ? 'border-green-500/30 bg-green-500/10' : sessionHealth.successRate > 80 ? 'border-yellow-500/30 bg-yellow-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
+              {sessionHealth.successRate > 95 ? (
+                <CheckCircle className="h-5 w-5 text-green-400" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-yellow-400" />
+              )}
+              <span className={`text-sm font-medium ${sessionHealth.successRate > 95 ? 'text-green-300' : sessionHealth.successRate > 80 ? 'text-yellow-300' : 'text-red-300'}`}>
+                {sessionHealth.successRate > 95 ? 'All systems operational' : sessionHealth.successRate > 80 ? 'Some issues detected' : 'Critical issues detected'}
+              </span>
+            </div>
           </CardContent>
         </Card>
       </div>
