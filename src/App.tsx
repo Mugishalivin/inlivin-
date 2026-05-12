@@ -67,7 +67,6 @@ import { StatusPage } from "./pages/docs/StatusPage";
 import { CookiesPage } from "./pages/docs/CookiesPage";
 import { LicensesPage } from "./pages/docs/LicensesPage";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -80,7 +79,9 @@ const endCallSession = async (sessionId: string) => {
       .from("call_sessions")
       .update({ status: "ended", ended_at: new Date().toISOString() })
       .eq("id", sessionId);
+
     if (error) throw error;
+
     toast.success("Call ended");
     queryClient.invalidateQueries({ queryKey: ["call-sessions"] });
   } catch (error) {
@@ -91,18 +92,22 @@ const endCallSession = async (sessionId: string) => {
 
 function AdminAwareDashboardRoute() {
   const { role, authRole, adminViewMode } = useAuth();
+
   if ((role === "admin" || authRole === "admin") && !adminViewMode) {
     return <Navigate to="/continue-as" replace />;
   }
   if ((role === "admin" || authRole === "admin") && adminViewMode === "admin") {
     return <Navigate to="/admin/overview" replace />;
   }
+
   return <DashboardPage />;
 }
 
 function AdminRouteGate() {
   const { role, authRole, adminViewMode } = useAuth();
+
   const isAdmin = role === "admin" || authRole === "admin";
+
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -112,6 +117,7 @@ function AdminRouteGate() {
   if (isAdmin && adminViewMode === "user") {
     return <Navigate to="/dashboard" replace />;
   }
+
   return <Outlet />;
 }
 
@@ -129,6 +135,7 @@ const App = () => (
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+
               {/* Docs Routes */}
               <Route path="/docs" element={<DocsIndexPage />} />
               <Route path="/docs/features" element={<FeaturesPage />} />
@@ -147,6 +154,7 @@ const App = () => (
               <Route path="/docs/terms" element={<TermsPage />} />
               <Route path="/docs/cookies" element={<CookiesPage />} />
               <Route path="/docs/licenses" element={<LicensesPage />} />
+
               <Route
                 path="/continue-as"
                 element={
@@ -155,6 +163,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/admin"
                 element={
@@ -178,6 +187,7 @@ const App = () => (
                   <Route path="settings" element={<PowerfulAdminSettingsPage />} />
                 </Route>
               </Route>
+
               <Route
                 element={
                   <ProtectedRoute>
@@ -186,11 +196,7 @@ const App = () => (
                 }
               >
                 <Route path="/dashboard" element={<AdminAwareDashboardRoute />} />
-<<<<<<< HEAD
                 <Route path="/feed" element={<FeedPage />} />
-=======
-                <Route path="/feed" element={<Navigate to="/posts" replace />} />
->>>>>>> 58da23d0bd108b20438c2b1208ed1fb9bb2944e7
                 <Route path="/posts" element={<PostsPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
@@ -214,8 +220,10 @@ const App = () => (
                 <Route path="/content-pipeline" element={<Navigate to="/studio" replace />} />
                 <Route path="/content/:contentType/:contentId" element={<ContentDetailPage />} />
               </Route>
+
               <Route path="*" element={<NotFound />} />
             </Routes>
+
             <MinimizedCallPopup />
           </CallProvider>
         </AuthProvider>
@@ -225,3 +233,4 @@ const App = () => (
 );
 
 export default App;
+
