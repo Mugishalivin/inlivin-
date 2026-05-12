@@ -30,6 +30,7 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import MessagesPage from "./pages/MessagesPage";
 import ExplorePage from "./pages/ExplorePage";
 import FeedPage from "./pages/FeedPage";
+import PostsPage from "./pages/PostsPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import CreateEventPage from "./pages/CreateEventPage";
 import EventsPage from "./pages/EventsPage";
@@ -186,6 +187,7 @@ const App = () => (
               >
                 <Route path="/dashboard" element={<AdminAwareDashboardRoute />} />
                 <Route path="/feed" element={<FeedPage />} />
+                <Route path="/posts" element={<PostsPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
                 <Route path="/messages" element={<MessagesPage />} />
