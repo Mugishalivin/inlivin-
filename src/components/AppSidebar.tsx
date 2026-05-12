@@ -29,8 +29,7 @@ import { readUpdatesSeenAt } from "@/lib/update-feed";
 
 const mainNav = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Feed", url: "/feed", icon: Globe },
-  { title: "Updates", url: "/updates", icon: Megaphone },
+  { title: "Posts", url: "/posts", icon: Globe },
   { title: "Projects", url: "/projects", icon: FolderOpen },
   { title: "Messages", url: "/messages", icon: MessageCircle },
   { title: "Explore", url: "/explore", icon: Compass },

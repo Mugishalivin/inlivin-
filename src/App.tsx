@@ -186,7 +186,11 @@ const App = () => (
                 }
               >
                 <Route path="/dashboard" element={<AdminAwareDashboardRoute />} />
+<<<<<<< HEAD
                 <Route path="/feed" element={<FeedPage />} />
+=======
+                <Route path="/feed" element={<Navigate to="/posts" replace />} />
+>>>>>>> 58da23d0bd108b20438c2b1208ed1fb9bb2944e7
                 <Route path="/posts" element={<PostsPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
@@ -201,7 +205,7 @@ const App = () => (
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/profile/:userId" element={<UserProfilePage />} />
                 <Route path="/studio" element={<ContentPipelinePage />} />
-                <Route path="/updates" element={<UpdatesPage />} />
+                <Route path="/updates" element={<Navigate to="/posts" replace />} />
                 <Route path="/marketplace" element={<MarketplacePage />} />
                 <Route path="/marketplace/:itemId" element={<MarketplaceDetailPage />} />
                 <Route path="/selling/:itemId" element={<MarketplaceDetailPage />} />

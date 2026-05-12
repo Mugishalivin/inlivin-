@@ -82,8 +82,8 @@ export function Gallery3D({ items, onFullscreen }: Gallery3DProps) {
             <video
               src={currentItem.url}
               className="w-full h-full object-contain"
-              playing={isPlaying}
-              volume={volume / 100}
+              autoPlay={isPlaying}
+              muted={volume === 0}
               controls={false}
             />
           )}

@@ -1,4 +1,5 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseRaw } from "@/integrations/supabase/client";
+const supabase: any = supabaseRaw;
 import { Studio, StudioMember, StudioProject, StudioTask, StudioAsset, StudioActivity } from "@/types/studio";
 
 // Studio Operations
