@@ -115,16 +115,8 @@ export default function MessagesPage() {
   const [callAccepting, setCallAccepting] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
-  const {
-    currentCallSession,
-    setCurrentCallSession,
-    callRoomOpen,
-    setCallRoomOpen,
-    otherUser,
-    setOtherUser,
-    isMicMuted,
-    setIsMicMuted,
-  } = useCall();
+  const [callInvitees, setCallInvitees] = useState<string[]>([]);
+  const { startCall, isConnecting, isMicMuted } = useCall();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
