@@ -226,7 +226,9 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
 
-            <MinimizedCallPopup />
+            <CallRoom />
+            <CallDock />
+            <IncomingCallOverlay />
           </CallProvider>
         </AuthProvider>
       </BrowserRouter>
