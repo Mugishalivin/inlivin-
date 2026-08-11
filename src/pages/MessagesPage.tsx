@@ -1767,7 +1767,7 @@ const sendMessage = useMutation({
                     mode: callMode || "voice",
                     inviteeIds: invitees,
                     isGroup: invitees.length > 1,
-                    title: invitees.length > 1 ? activeConversation?.title ?? null : null,
+                    title: invitees.length > 1 ? (activeConversation as any)?.title ?? null : null,
                   });
                 }}
               >
