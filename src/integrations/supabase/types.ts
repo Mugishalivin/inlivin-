@@ -514,6 +514,56 @@ export type Database = {
           },
         ]
       }
+      call_participants: {
+        Row: {
+          created_at: string
+          id: string
+          is_muted: boolean
+          is_screen_sharing: boolean
+          is_video_on: boolean
+          joined_at: string | null
+          left_at: string | null
+          session_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_muted?: boolean
+          is_screen_sharing?: boolean
+          is_video_on?: boolean
+          joined_at?: string | null
+          left_at?: string | null
+          session_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_muted?: boolean
+          is_screen_sharing?: boolean
+          is_video_on?: boolean
+          joined_at?: string | null
+          left_at?: string | null
+          session_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_sessions: {
         Row: {
           accepted_at: string | null
@@ -526,11 +576,13 @@ export type Database = {
           ended_at: string | null
           id: string
           initiator_id: string
+          is_group: boolean
           mode: string
           offer_sdp: string | null
-          recipient_id: string
+          recipient_id: string | null
           started_at: string | null
           status: string
+          title: string | null
           updated_at: string
         }
         Insert: {
@@ -544,11 +596,13 @@ export type Database = {
           ended_at?: string | null
           id?: string
           initiator_id: string
+          is_group?: boolean
           mode?: string
           offer_sdp?: string | null
-          recipient_id: string
+          recipient_id?: string | null
           started_at?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
         }
         Update: {
@@ -562,11 +616,13 @@ export type Database = {
           ended_at?: string | null
           id?: string
           initiator_id?: string
+          is_group?: boolean
           mode?: string
           offer_sdp?: string | null
-          recipient_id?: string
+          recipient_id?: string | null
           started_at?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -575,6 +631,44 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_signals: {
+        Row: {
+          created_at: string
+          from_user_id: string
+          id: string
+          kind: string
+          payload: Json
+          session_id: string
+          to_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_user_id: string
+          id?: string
+          kind: string
+          payload?: Json
+          session_id: string
+          to_user_id: string
+        }
+        Update: {
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          kind?: string
+          payload?: Json
+          session_id?: string
+          to_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_signals_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -797,15 +891,7 @@ export type Database = {
           reason?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "creator_badges_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       creator_network: {
         Row: {
@@ -3314,6 +3400,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_call: {
+        Args: { _session_id: string; _user_id: string }
+        Returns: boolean
+      }
       delete_own_comment: { Args: { comment_id: string }; Returns: boolean }
       has_role: {
         Args: {

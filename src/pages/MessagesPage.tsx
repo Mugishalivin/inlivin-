@@ -115,16 +115,8 @@ export default function MessagesPage() {
   const [callAccepting, setCallAccepting] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
-  const {
-    currentCallSession,
-    setCurrentCallSession,
-    callRoomOpen,
-    setCallRoomOpen,
-    otherUser,
-    setOtherUser,
-    isMicMuted,
-    setIsMicMuted,
-  } = useCall();
+  const [callInvitees, setCallInvitees] = useState<string[]>([]);
+  const { startCall, isConnecting, isMicMuted } = useCall();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -662,109 +654,8 @@ const sendMessage = useMutation({
     onError: (err: any) => toast.error(err.message),
   });
 
-  const cleanupCallResources = useCallback(() => {
-    peerConnectionRef.current?.close();
-    peerConnectionRef.current = null;
-    localMediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    localMediaStreamRef.current = null;
-    remoteMediaStreamRef.current = null;
-    processedCallerCandidatesRef.current = 0;
-    processedCalleeCandidatesRef.current = 0;
-    setIsMicMuted(false);
-    setIsCameraOff(false);
-    setCallRoomOpen(false);
-    setCurrentCallSession(null);
-    setCallAccepting(false);
-  }, []);
+  // Calling is fully handled by CallContext (mesh WebRTC, group support, secure signalling).
 
-  const startCallInvite = useMutation({
-    mutationFn: async ({ conversationId, recipient }: { conversationId: string; recipient: { user_id: string; profile: { display_name: string | null; avatar_url: string | null; username: string | null } } }) => {
-      if (!conversationId || !recipient?.user_id) {
-        throw new Error("Please open a conversation first");
-      }
-      const currentCallMode = callMode || "voice";
-      const { data, error } = await supabase
-        .from("call_sessions")
-        .insert({
-          conversation_id: conversationId,
-          initiator_id: user!.id,
-          recipient_id: recipient.user_id,
-          mode: currentCallMode,
-          burst_emojis: [],
-          status: "pending",
-        })
-        .select("*")
-        .single();
-      if (error) throw error;
-      await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: user!.id,
-        content: `📞 Started a ${currentCallMode === "video" ? "video" : "voice"} call...`,
-        call_session_id: data.id,
-        attachment_kind: "call",
-      });
-      return data as CallSessionRow;
-    },
-    onSuccess: (session, { recipient }) => {
-      setCurrentCallSession(session);
-      setOtherUser(recipient);
-      setCallRoomOpen(true);
-      setShowCallSheet(false);
-      toast.success("Call started");
-      queryClient.invalidateQueries({ queryKey: ["call-sessions", activeConvo] });
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
-
-  const acceptCallSession = useMutation({
-    mutationFn: async (sessionId: string) => {
-      const { error } = await supabase.from("call_sessions").update({
-        status: "accepted",
-        accepted_at: new Date().toISOString(),
-      }).eq("id", sessionId);
-      if (error) throw error;
-    },
-    onSuccess: (_, sessionId) => {
-      const session = callSessions.find(s => s.id === sessionId);
-      if (session) {
-        setCurrentCallSession(session);
-        setOtherUser(localOtherUser);
-      }
-      setCallRoomOpen(true);
-      setCallAccepting(true);
-      queryClient.invalidateQueries({ queryKey: ["call-sessions", activeConvo] });
-    },
-    onError: (err: any) => {
-      toast.error(err.message || "Could not accept call");
-      setCallAccepting(false);
-    },
-  });
-
-  const declineCallSession = useMutation({
-    mutationFn: async (sessionId: string) => {
-      const { error } = await supabase.from("call_sessions").update({ status: "rejected", ended_at: new Date().toISOString() }).eq("id", sessionId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Call declined");
-      queryClient.invalidateQueries({ queryKey: ["call-sessions", activeConvo] });
-    },
-  });
-
-  const endCallSession = useMutation({
-    mutationFn: async (sessionId: string) => {
-      const { error } = await supabase.from("call_sessions").update({ status: "ended", ended_at: new Date().toISOString() }).eq("id", sessionId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      cleanupCallResources();
-      setCurrentCallSession(null);
-      setOtherUser(null);
-      setCallRoomOpen(false);
-      toast.success("Call ended");
-      queryClient.invalidateQueries({ queryKey: ["call-sessions", activeConvo] });
-    },
-  });
 
   // Delete conversation
   const deleteConversation = useMutation({
@@ -1135,148 +1026,8 @@ const sendMessage = useMutation({
   const activeConversation = useMemo(() => (activeConvo ? (conversations as ConversationWithDetails[]).find((c) => c.id === activeConvo) : null), [activeConvo, conversations]);
   const localOtherUser = activeConversation?.participants?.[0] ?? null;
 
-  const incomingPendingCall = useMemo(() => callSessions.find((session) => session.status === "pending" && session.recipient_id === user?.id) ?? null, [callSessions, user?.id]);
+  // Incoming calls, WebRTC negotiation and media state now live in CallContext.
 
-  useEffect(() => {
-    if (incomingPendingCall && incomingPendingCall.id !== currentCallSession?.id) {
-      setCallRoomOpen(false);
-    }
-  }, [currentCallSession?.id, incomingPendingCall]);
-
-  useEffect(() => {
-    if (!currentCallSession || !user || peerConnectionRef.current) return;
-    let cancelled = false;
-    const isInitiator = currentCallSession.initiator_id === user.id;
-
-    const start = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: currentCallSession.mode === "video",
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        localMediaStreamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-
-        const remoteStream = new MediaStream();
-        remoteMediaStreamRef.current = remoteStream;
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-
-        const pc = new RTCPeerConnection({
-          iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
-        });
-        peerConnectionRef.current = pc;
-
-        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
-        pc.ontrack = (event) => {
-          event.streams[0]?.getTracks().forEach((track) => remoteStream.addTrack(track));
-          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-        };
-
-        pc.onicecandidate = async (event) => {
-          if (!event.candidate) return;
-          const candidatePayload = event.candidate.toJSON();
-          const field = isInitiator ? "caller_candidates" : "callee_candidates";
-          const { data: existing } = await supabase.from("call_sessions").select(field).eq("id", currentCallSession.id).single();
-          const currentList = (existing?.[field as "caller_candidates" | "callee_candidates"] as Record<string, unknown>[] | null) ?? [];
-          await supabase.from("call_sessions").update({
-            [field]: [...currentList, candidatePayload],
-          }).eq("id", currentCallSession.id);
-        };
-
-        if (isInitiator && !currentCallSession.offer_sdp) {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          await supabase.from("call_sessions").update({
-            offer_sdp: offer.sdp,
-            status: "pending",
-          }).eq("id", currentCallSession.id);
-        }
-      } catch (error: any) {
-        toast.error(error?.message || "Could not start call");
-        cleanupCallResources();
-      }
-    };
-
-    void start();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [cleanupCallResources, currentCallSession, user]);
-
-  useEffect(() => {
-    const audioTrack = localMediaStreamRef.current?.getAudioTracks()[0];
-    if (audioTrack) audioTrack.enabled = !isMicMuted;
-  }, [isMicMuted, currentCallSession]);
-
-  useEffect(() => {
-    const videoTrack = localMediaStreamRef.current?.getVideoTracks()[0];
-    if (videoTrack) videoTrack.enabled = !isCameraOff;
-  }, [currentCallSession, isCameraOff]);
-
-  useEffect(() => {
-    if (!currentCallSession) return;
-    if (currentCallSession.status === "ended" || currentCallSession.status === "rejected") {
-      cleanupCallResources();
-    }
-  }, [cleanupCallResources, currentCallSession]);
-
-  useEffect(() => {
-    if (!currentCallSession || !peerConnectionRef.current || !user) return;
-    const isInitiator = currentCallSession.initiator_id === user.id;
-    const pc = peerConnectionRef.current;
-    const remoteCandidates = isInitiator ? (currentCallSession.callee_candidates as Record<string, unknown>[]) : (currentCallSession.caller_candidates as Record<string, unknown>[]);
-
-    const syncOfferAnswer = async () => {
-      try {
-        if (!isInitiator && currentCallSession.offer_sdp && pc.signalingState === "stable") {
-          await pc.setRemoteDescription({ type: "offer", sdp: currentCallSession.offer_sdp });
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          await supabase.from("call_sessions").update({
-            answer_sdp: answer.sdp,
-            status: "active",
-            accepted_at: new Date().toISOString(),
-            started_at: new Date().toISOString(),
-          }).eq("id", currentCallSession.id);
-          setCallAccepting(false);
-        }
-        if (isInitiator && currentCallSession.answer_sdp && pc.signalingState !== "closed") {
-          const hasRemote = pc.currentRemoteDescription?.type === "answer";
-          if (!hasRemote) {
-            await pc.setRemoteDescription({ type: "answer", sdp: currentCallSession.answer_sdp });
-            await supabase.from("call_sessions").update({
-              status: "active",
-              started_at: currentCallSession.started_at || new Date().toISOString(),
-            }).eq("id", currentCallSession.id);
-            setCallRoomOpen(true);
-          }
-        }
-      } catch (error: any) {
-        toast.error(error?.message || "Call connection failed");
-      }
-    };
-
-    void syncOfferAnswer();
-
-    const processedRef = isInitiator ? processedCalleeCandidatesRef : processedCallerCandidatesRef;
-    const toProcess = remoteCandidates.slice(processedRef.current);
-    if (toProcess.length > 0) {
-      processedRef.current = remoteCandidates.length;
-      toProcess.forEach(async (candidate) => {
-        try {
-          await pc.addIceCandidate(candidate as RTCIceCandidateInit);
-        } catch {
-          // ignore bad candidates on reconnect
-        }
-      });
-    }
-  }, [currentCallSession, user]);
 
   // ======================== CHAT VIEW ========================
   if (activeConvo) {
@@ -1929,298 +1680,106 @@ const sendMessage = useMutation({
           </DialogContent>
         </Dialog>
 
-        <Dialog
-          open={!!incomingPendingCall}
-          onOpenChange={(open) => {
-            if (!open && incomingPendingCall) {
-              declineCallSession.mutate(incomingPendingCall.id);
-            }
-          }}
-        >
-          <DialogContent className="border-white/15 bg-white/10 text-white backdrop-blur-2xl sm:max-w-md">
-            <div className="mb-4">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Incoming call</p>
-              <h3 className="font-display text-xl font-bold">
-                {incomingPendingCall?.mode === "video" ? "Video call" : "Voice call"} from {localOtherUser?.profile?.display_name || "Artist"}
-              </h3>
-            </div>
-            <div className="mb-4 rounded-2xl border border-white/10 bg-white/10 p-3 text-sm backdrop-blur-xl">
-              <p className="text-xs text-white/60">Call type</p>
-              <p className="mt-1 text-base font-semibold capitalize">{incomingPendingCall?.mode === "video" ? "📹 Video call" : "🎧 Voice call"}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => incomingPendingCall && declineCallSession.mutate(incomingPendingCall.id)}>
-                Decline
-              </Button>
-              <Button
-                variant="hero"
-                className="flex-1"
-                onClick={() => incomingPendingCall && acceptCallSession.mutate(incomingPendingCall.id)}
-                disabled={callAccepting}
-              >
-                {callAccepting ? "Connecting..." : "Accept"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={callRoomOpen && !!currentCallSession} onOpenChange={(open) => { if (!open) setCallRoomOpen(false); }}>
-          <DialogContent className="sm:max-w-6xl overflow-hidden border-white/15 bg-white/10 p-0 text-white backdrop-blur-2xl shadow-2xl">
-            {currentCallSession && (
-              <div className="bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_38%),linear-gradient(180deg,rgba(15,23,42,0.22),rgba(15,23,42,0.52))]">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-4 py-3 backdrop-blur-xl">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Live call</p>
-                    <h3 className="font-display text-lg font-bold">{currentCallSession.mode === "video" ? "Video room" : "Voice room"}</h3>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {currentCallSession.burst_emojis.slice(0, 3).map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm transition-all hover:bg-white/20"
-                        onClick={() => toast.message(emoji)}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                    <Button
-                      variant={isMicMuted ? "secondary" : "outline"}
-                      size="sm"
-                      onClick={() => {
-                        const audioTrack = localMediaStreamRef.current?.getAudioTracks()[0];
-                        if (audioTrack) audioTrack.enabled = !audioTrack.enabled;
-                        setIsMicMuted(!isMicMuted);
-                      }}
-                    >
-                      <Volume2 size={14} className="mr-1" /> {isMicMuted ? "Unmute" : "Mute"}
-                    </Button>
-                    {currentCallSession.mode === "video" && (
-                      <Button
-                        variant={isCameraOff ? "secondary" : "outline"}
-                        size="sm"
-                        onClick={() => {
-                          const videoTrack = localMediaStreamRef.current?.getVideoTracks()[0];
-                          if (videoTrack) videoTrack.enabled = !videoTrack.enabled;
-                          setIsCameraOff((value) => !value);
-                        }}
-                      >
-                        {isCameraOff ? <VideoOff size={14} className="mr-1" /> : <Video size={14} className="mr-1" />}
-                        {isCameraOff ? "Camera on" : "Camera off"}
-                      </Button>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => setCallRoomOpen(false)}>
-                      <Minimize2 size={14} className="mr-1" /> Minimize
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => endCallSession.mutate(currentCallSession.id)}>
-                      End
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid lg:grid-cols-[1.25fr_0.75fr]">
-                  <div className="relative min-h-[520px] overflow-hidden p-4">
-                    {currentCallSession.mode === "video" ? (
-                      <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] gap-4">
-                        <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/10 shadow-2xl backdrop-blur-2xl">
-                          <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover" />
-                          <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-white backdrop-blur-xl">Remote video</div>
-                          <div className="absolute bottom-4 right-4 overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-xl backdrop-blur-2xl">
-                            <video ref={localVideoRef} autoPlay muted playsInline className="h-40 w-28 object-cover opacity-90" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 text-white backdrop-blur-2xl">
-                            <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">Your room</p>
-                            <div className="mt-3 flex items-center gap-3">
-                              <div className="h-12 w-12 overflow-hidden rounded-full bg-white/10 ring-2 ring-white/10">
-                                {user?.user_metadata?.avatar_url ? <img src={user.user_metadata.avatar_url} alt="" className="h-full w-full object-cover" /> : <User size={18} className="m-3 text-white/70" />}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate font-semibold">{user?.user_metadata?.full_name || "You"}</p>
-                                <p className="text-xs text-white/60">{isMicMuted ? "Mic muted" : "Mic live"}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 text-white backdrop-blur-2xl">
-                            <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">Shared actions</p>
-                            <div className="mt-3 flex items-center gap-2">
-                              {[["Mute", isMicMuted], ["Camera", isCameraOff], ["Invite", false]].map(([label, active]: [string, boolean], idx) => (
-                                <span key={idx} className={`rounded-full px-3 py-1 text-xs ${active ? "bg-primary text-primary-foreground" : "bg-white/10 text-white/80"}`}>
-                                  {label}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center gap-6 rounded-3xl border border-white/15 bg-white/10 p-6 text-white shadow-2xl backdrop-blur-2xl">
-                        <div className="relative">
-                          <div className="absolute inset-0 rounded-full bg-cyan-400/15 blur-3xl" />
-                          <div className="relative flex h-36 w-36 items-center justify-center rounded-full border border-white/15 bg-white/10 backdrop-blur-2xl">
-                            {localOtherUser?.profile?.avatar_url ? (
-                              <img src={otherUser.profile.avatar_url} alt="" className="h-full w-full rounded-full object-cover" />
-                            ) : (
-                              <User size={44} className="text-white/80" />
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">Voice call</p>
-                          <h4 className="mt-2 text-2xl font-bold">{localOtherUser?.profile?.display_name || "Artist"}</h4>
-                          <p className="mt-1 text-sm text-white/60">{isMicMuted ? "You are muted" : "You are speaking"} with live wave feedback</p>
-                        </div>
-                        <div className="flex items-end gap-1">
-                          {[12, 22, 16, 28, 14, 20, 10, 24, 18, 26, 12, 30].map((height, index) => (
-                            <motion.div
-                              key={index}
-                              animate={isMicMuted ? { height: 8, opacity: 0.35 } : { height: [height, height + 16, height - 3, height + 8] }}
-                              transition={{
-                                duration: 0.85 + (index % 4) * 0.08,
-                                repeat: isMicMuted ? 0 : Infinity,
-                                repeatType: "mirror",
-                                ease: "easeInOut",
-                                delay: index * 0.04,
-                              }}
-                              className="w-2 rounded-full bg-gradient-to-t from-cyan-400 via-fuchsia-400 to-emerald-300"
-                              style={{ height }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-white/10 bg-white/5 p-4 lg:border-l lg:border-t-0 backdrop-blur-2xl">
-                    <div className="flex h-full flex-col gap-3">
-                      <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur-xl">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Participant</p>
-                        <div className="mt-3 flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
-                            {localOtherUser?.profile?.avatar_url ? <img src={localOtherUser.profile.avatar_url} alt="" className="h-full w-full object-cover" /> : <User size={14} className="text-muted-foreground" />}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">{localOtherUser?.profile?.display_name || "Artist"}</p>
-                            <p className="text-xs text-white/60">{currentCallSession.mode === "video" ? "Video call" : "Voice call"}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur-xl">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Quality</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="flex h-2 flex-1 gap-0.5 overflow-hidden rounded-full bg-white/10">
-                            {[...Array(5)].map((_, i) => (
-                              <div key={i} className={`flex-1 rounded-full ${i < 4 ? "bg-green-500" : "bg-white/20"}`} />
-                            ))}
-                          </div>
-                          <span className="text-xs text-white/60">Strong</span>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur-xl">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Your status</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                          <span className="text-xs font-medium">{isMicMuted ? "Muted" : "Connected"}</span>
-                        </div>
-                      </div>
-
-                      <div className="relative">
-                        <Button variant="outline" className="w-full rounded-2xl border border-white/15 bg-white/10 text-white hover:bg-white/20" onClick={() => setShowAddUserMenu((value) => !value)}>
-                          <UserPlus size={14} className="mr-2" /> Add user
-                        </Button>
-                        {showAddUserMenu && (
-                          <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-xl border border-white/15 bg-black/80 p-2 backdrop-blur-xl">
-                            <Input
-                              value={callAddUserSearch}
-                              onChange={(e) => setCallAddUserSearch(e.target.value)}
-                              placeholder="Search to add user..."
-                              className="h-8"
-                            />
-                            <div className="max-h-40 overflow-y-auto mt-2">
-                              {callUserSuggestions.length ? callUserSuggestions.map((profile) => (
-                                <button
-                                  key={profile.user_id}
-                                  type="button"
-                                  onClick={() => {
-                                    toast.success(`Invite sent to ${profile.display_name || profile.username || "artist"}`);
-                                    setShowAddUserMenu(false);
-                                    setCallAddUserSearch("");
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm hover:bg-white/10"
-                                >
-                                  <div className="h-6 w-6 rounded-full bg-white/10">
-                                    {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : <User size={12} className="m-1" />}
-                                  </div>
-                                  <div className="flex-1 truncate">
-                                    {profile.display_name || profile.username || "Artist"}
-                                    <p className="text-[10px] text-white/60">{profile.username ? `@${profile.username}` : ""}</p>
-                                  </div>
-                                  <span className="text-xs text-white/60">Add</span>
-                                </button>
-                              )) : (
-                                <p className="text-xs text-white/60 p-2">No suggestions yet.</p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
         <Dialog open={showCallSheet} onOpenChange={setShowCallSheet}>
-          <DialogContent className="border-white/15 bg-white/10 text-white backdrop-blur-2xl sm:max-w-md">
+          <DialogContent className="sm:max-w-md">
             <div className="mb-4">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-white/55">Call studio</p>
-              <h3 className="font-display text-xl font-bold">{callMode === "video" ? "Video call setup" : "Voice call setup"}</h3>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">Call studio</p>
+              <h3 className="font-display text-xl font-bold">
+                {callMode === "video" ? "Video call setup" : "Voice call setup"}
+              </h3>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setCallMode("voice")}
-                  className={`rounded-2xl border p-3 text-left transition-all ${callMode === "voice" ? "border-white/20 bg-white/15" : "border-white/10 bg-white/5"}`}
+                  className={`rounded-2xl border p-3 text-left transition-colors ${callMode === "voice" ? "border-primary bg-primary/10" : "border-border bg-card"}`}
                 >
                   <Phone size={18} className="mb-2 text-primary" />
                   <p className="font-semibold">Voice</p>
-                  <p className="text-xs text-white/60">Audio room</p>
+                  <p className="text-xs text-muted-foreground">Crisp audio room</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => setCallMode("video")}
-                  className={`rounded-2xl border p-3 text-left transition-all ${callMode === "video" ? "border-white/20 bg-white/15" : "border-white/10 bg-white/5"}`}
+                  className={`rounded-2xl border p-3 text-left transition-colors ${callMode === "video" ? "border-primary bg-primary/10" : "border-border bg-card"}`}
                 >
                   <Video size={18} className="mb-2 text-primary" />
                   <p className="font-semibold">Video</p>
-                  <p className="text-xs text-white/60">Face-to-face</p>
+                  <p className="text-xs text-muted-foreground">HD face-to-face</p>
                 </button>
               </div>
+
+              <div className="rounded-2xl border border-border bg-card p-3">
+                <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">Who joins</p>
+                <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">
+                  {(activeConversation?.participants ?? []).map((participant: any) => {
+                    const checked = callInvitees.length
+                      ? callInvitees.includes(participant.user_id)
+                      : true;
+                    return (
+                      <button
+                        key={participant.user_id}
+                        type="button"
+                        onClick={() =>
+                          setCallInvitees((prev) => {
+                            const base = prev.length
+                              ? prev
+                              : (activeConversation?.participants ?? []).map((p: any) => p.user_id);
+                            return base.includes(participant.user_id)
+                              ? base.filter((id) => id !== participant.user_id)
+                              : [...base, participant.user_id];
+                          })
+                        }
+                        className={`flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors ${checked ? "bg-primary/10" : "hover:bg-secondary/60"}`}
+                      >
+                        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-secondary">
+                          {participant.profile?.avatar_url ? (
+                            <img src={participant.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <User size={14} className="text-muted-foreground" />
+                          )}
+                        </div>
+                        <span className="flex-1 truncate text-sm font-medium">
+                          {participant.profile?.display_name || participant.profile?.username || "Artist"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{checked ? "Joining" : "Skip"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <Button
                 className="w-full"
                 variant="hero"
-                onClick={() => {
-                  const recipient = localOtherUser;
-                  if (!activeConvo || !recipient) {
-                    toast.error("Please open a conversation first");
+                disabled={!activeConvo || isConnecting}
+                onClick={async () => {
+                  const everyone = (activeConversation?.participants ?? []).map((p: any) => p.user_id as string);
+                  const invitees = callInvitees.length ? callInvitees : everyone;
+                  if (!activeConvo || !invitees.length) {
+                    toast.error("Open a conversation first");
                     return;
                   }
-                  if (!callMode) setCallMode("voice");
-                  startCallInvite.mutate({ conversationId: activeConvo, recipient });
+                  setShowCallSheet(false);
+                  await startCall({
+                    conversationId: activeConvo,
+                    mode: callMode || "voice",
+                    inviteeIds: invitees,
+                    isGroup: invitees.length > 1,
+                    title: invitees.length > 1 ? (activeConversation as any)?.title ?? null : null,
+                  });
                 }}
-                disabled={!activeConvo || !localOtherUser}
               >
-                Start call now
+                {isConnecting ? "Connecting…" : "Start call now"}
               </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Calls are peer-to-peer encrypted. Group calls support up to 6 people smoothly.
+              </p>
             </div>
           </DialogContent>
         </Dialog>
+
       </div>
     );
   }

@@ -5,7 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
-import { MinimizedCallPopup } from "@/components/MinimizedCallPopup";
+import { CallRoom } from "@/components/call/CallRoom";
+import { CallDock } from "@/components/call/CallDock";
+import { IncomingCallOverlay } from "@/components/call/IncomingCallOverlay";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
@@ -128,7 +130,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <CallProvider endCallSession={endCallSession}>
+          <CallProvider>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
@@ -224,7 +226,9 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
 
-            <MinimizedCallPopup />
+            <CallRoom />
+            <CallDock />
+            <IncomingCallOverlay />
           </CallProvider>
         </AuthProvider>
       </BrowserRouter>
