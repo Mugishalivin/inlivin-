@@ -202,7 +202,7 @@ export default function UserProfilePage() {
         .order("created_at", { ascending: true })
         .limit(80);
 
-      const userIds = [...new Set((comments ?? []).map((comment: any) => comment.user_id))];
+      const userIds = [...new Set((comments ?? []).map((comment: any) => comment.user_id as string))] as string[];
       const { data: profiles } = userIds.length
         ? await supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds)
         : { data: [] as any[] };
