@@ -130,7 +130,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <CallProvider endCallSession={endCallSession}>
+          <CallProvider>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
