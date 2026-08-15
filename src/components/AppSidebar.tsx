@@ -75,8 +75,8 @@ const adminNav = [
 ];
 
 export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  const collapsed = state === "collapsed" && !isMobile;
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, role, adminViewMode, impersonationTarget, signOut, setAdminViewMode } = useAuth();
@@ -84,11 +84,17 @@ export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) 
 
   const isActive = (path: string) => location.pathname === path;
 
+  const closeMobile = () => {
+    if (isMobile) setOpenMobile(false);
+    onItemSelected?.();
+  };
+
   const handleReturnToAdmin = () => {
     setAdminViewMode("admin");
     navigate("/admin/overview");
-    onItemSelected?.();
+    closeMobile();
   };
+
 
   useEffect(() => {
     const refreshUpdatesSeen = () => setUpdatesSeenVersion((value) => value + 1);
