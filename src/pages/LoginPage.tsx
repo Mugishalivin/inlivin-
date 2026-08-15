@@ -21,29 +21,24 @@ export default function LoginPage() {
     let alive = true;
 
     const runSessionCheck = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!alive) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!alive || !session?.user) return;
 
-        if (session?.user) {
-          const { data } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", session.user.id)
-            .maybeSingle();
-          if ((data?.role === "admin" || authRole === "admin") && !adminViewMode) {
-            navigate("/continue-as", { replace: true });
-          } else if (data?.role === "admin" || authRole === "admin") {
-            navigate(adminViewMode === "admin" ? "/admin/overview" : "/dashboard", { replace: true });
-          } else {
-            navigate("/dashboard", { replace: true });
-          }
-          return;
-        }
-      } finally {
-        if (alive) setCheckingSession(false);
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      const isAdmin = data?.role === "admin" || authRole === "admin";
+      if (isAdmin && !adminViewMode) {
+        navigate("/continue-as", { replace: true });
+      } else if (isAdmin) {
+        navigate(adminViewMode === "admin" ? "/admin/overview" : "/dashboard", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
       }
     };
+
 
 
     void runSessionCheck();
