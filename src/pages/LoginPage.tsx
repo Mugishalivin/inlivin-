@@ -103,12 +103,7 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-8">
-          {checkingSession && (
-            <div className="mb-5 flex items-center gap-3 rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-              <span>Checking your session. The form is ready if you need to sign in.</span>
-            </div>
-          )}
+
 
           {/* Social buttons */}
           <div className="grid grid-cols-2 gap-3 mb-6">
