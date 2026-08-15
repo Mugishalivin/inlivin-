@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Eye, EyeOff, Mail, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const { adminViewMode, authRole } = useAuth();
@@ -16,7 +16,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
     let alive = true;
