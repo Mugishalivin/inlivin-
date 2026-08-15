@@ -863,10 +863,17 @@ export type Database = {
           awarded_by: string | null
           badge_type: string
           category: string | null
+          color: string | null
+          created_at: string
+          description: string | null
           earned_at: string | null
+          expires_at: string | null
           id: string
           is_active: boolean | null
+          label: string | null
+          level: number
           reason: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
@@ -874,10 +881,17 @@ export type Database = {
           awarded_by?: string | null
           badge_type: string
           category?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
           earned_at?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean | null
+          label?: string | null
+          level?: number
           reason?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
@@ -885,10 +899,17 @@ export type Database = {
           awarded_by?: string | null
           badge_type?: string
           category?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
           earned_at?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean | null
+          label?: string | null
+          level?: number
           reason?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

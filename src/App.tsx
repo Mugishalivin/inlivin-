@@ -187,6 +187,11 @@ const App = () => (
                   <Route path="lookup" element={<AdminLookupPage />} />
                   <Route path="badges" element={<AdminBadgesPage />} />
                   <Route path="settings" element={<PowerfulAdminSettingsPage />} />
+                  <Route path="monitoring" element={<Navigate to="/admin/health" replace />} />
+                  <Route path="security" element={<Navigate to="/admin/settings" replace />} />
+                  <Route path="audit" element={<Navigate to="/admin/lookup" replace />} />
+                  <Route path="*" element={<Navigate to="/admin/overview" replace />} />
+
                 </Route>
               </Route>
 

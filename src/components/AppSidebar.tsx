@@ -68,15 +68,17 @@ const adminNav = [
   { title: "Impersonate", url: "/admin/impersonate", icon: ArrowLeftRight },
   { title: "Content", url: "/admin/content", icon: FileText },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
-  { title: "System", url: "/admin/analytics", icon: Database },
-  { title: "Monitoring", url: "/admin/monitoring", icon: Activity },
-  { title: "Security", url: "/admin/security", icon: Shield },
+  { title: "Analytics", url: "/admin/analytics", icon: Database },
+  { title: "Health", url: "/admin/health", icon: Activity },
+  { title: "Badges", url: "/admin/badges", icon: Shield },
   { title: "Lookup", url: "/admin/lookup", icon: Compass },
+  { title: "Settings", url: "/admin/settings", icon: Settings },
+
 ];
 
 export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  const collapsed = state === "collapsed" && !isMobile;
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, role, adminViewMode, impersonationTarget, signOut, setAdminViewMode } = useAuth();
@@ -84,11 +86,17 @@ export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) 
 
   const isActive = (path: string) => location.pathname === path;
 
+  const closeMobile = () => {
+    if (isMobile) setOpenMobile(false);
+    onItemSelected?.();
+  };
+
   const handleReturnToAdmin = () => {
     setAdminViewMode("admin");
     navigate("/admin/overview");
-    onItemSelected?.();
+    closeMobile();
   };
+
 
   useEffect(() => {
     const refreshUpdatesSeen = () => setUpdatesSeenVersion((value) => value + 1);
@@ -198,7 +206,7 @@ export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) 
             <NavLink
               to={item.url}
               end
-              onClick={onItemSelected}
+              onClick={closeMobile}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
               activeClassName="bg-primary/10 text-primary font-semibold"
             >

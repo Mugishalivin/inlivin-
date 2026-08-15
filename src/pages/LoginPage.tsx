@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Eye, EyeOff, Mail, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const { adminViewMode, authRole } = useAuth();
@@ -16,35 +16,29 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
     let alive = true;
 
     const runSessionCheck = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!alive) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!alive || !session?.user) return;
 
-        if (session?.user) {
-          const { data } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", session.user.id)
-            .maybeSingle();
-          if ((data?.role === "admin" || authRole === "admin") && !adminViewMode) {
-            navigate("/continue-as", { replace: true });
-          } else if (data?.role === "admin" || authRole === "admin") {
-            navigate(adminViewMode === "admin" ? "/admin/overview" : "/dashboard", { replace: true });
-          } else {
-            navigate("/dashboard", { replace: true });
-          }
-          return;
-        }
-      } finally {
-        if (alive) setCheckingSession(false);
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      const isAdmin = data?.role === "admin" || authRole === "admin";
+      if (isAdmin && !adminViewMode) {
+        navigate("/continue-as", { replace: true });
+      } else if (isAdmin) {
+        navigate(adminViewMode === "admin" ? "/admin/overview" : "/dashboard", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
       }
     };
+
 
 
     void runSessionCheck();
@@ -103,12 +97,7 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-8">
-          {checkingSession && (
-            <div className="mb-5 flex items-center gap-3 rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-              <span>Checking your session. The form is ready if you need to sign in.</span>
-            </div>
-          )}
+
 
           {/* Social buttons */}
           <div className="grid grid-cols-2 gap-3 mb-6">
