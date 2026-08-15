@@ -204,7 +204,7 @@ export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) 
             <NavLink
               to={item.url}
               end
-              onClick={onItemSelected}
+              onClick={closeMobile}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
               activeClassName="bg-primary/10 text-primary font-semibold"
             >
