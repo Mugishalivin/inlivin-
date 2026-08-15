@@ -68,10 +68,12 @@ const adminNav = [
   { title: "Impersonate", url: "/admin/impersonate", icon: ArrowLeftRight },
   { title: "Content", url: "/admin/content", icon: FileText },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
-  { title: "System", url: "/admin/analytics", icon: Database },
-  { title: "Monitoring", url: "/admin/monitoring", icon: Activity },
-  { title: "Security", url: "/admin/security", icon: Shield },
+  { title: "Analytics", url: "/admin/analytics", icon: Database },
+  { title: "Health", url: "/admin/health", icon: Activity },
+  { title: "Badges", url: "/admin/badges", icon: Shield },
   { title: "Lookup", url: "/admin/lookup", icon: Compass },
+  { title: "Settings", url: "/admin/settings", icon: Settings },
+
 ];
 
 export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) {
