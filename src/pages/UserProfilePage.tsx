@@ -15,6 +15,7 @@ import {
   FolderOpen, ArrowLeft, Music, Image, Video, ExternalLink, FileText, Plus, Trash2, X
 } from "lucide-react";
 import { ReportDialog } from "@/components/ReportDialog";
+import { UserBadge, BadgeChip, useUserBadge } from "@/components/UserBadge";
 
 const categoryIcons: Record<string, any> = { music: Music, visual: Image, video: Video, other: FolderOpen };
 const sb = supabase as any;
@@ -253,6 +254,8 @@ export default function UserProfilePage() {
   const isActiveNow = !!lastSeen && Date.now() - lastSeen.getTime() <= 2 * 60 * 1000;
   const lastActiveLabel = lastSeen ? `Last active ${formatDistanceToNow(lastSeen, { addSuffix: true })}` : null;
 
+  const badgeTier = useUserBadge(userId);
+
   if (isLoading) {
     return (
       <div className="p-6 md:p-8 max-w-3xl mx-auto">
@@ -284,14 +287,18 @@ export default function UserProfilePage() {
         <Card className="border-border/50 overflow-hidden mb-6">
           <div className="h-24 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/5" />
           <CardContent className="p-5 -mt-12">
-            <div className="flex items-end gap-4 mb-4">
-              <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center overflow-hidden ring-4 ring-background shrink-0">
-                {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" /> : <User size={32} className="text-muted-foreground" />}
+            <div className="flex flex-row-reverse items-end gap-4 mb-4">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-secondary flex items-center justify-center overflow-hidden ring-4 ring-background shrink-0">
+                {profile.avatar_url ? <img src={profile.avatar_url} alt={profile.display_name || "Profile photo"} className="w-full h-full object-cover" /> : <User size={32} className="text-muted-foreground" />}
               </div>
               <div className="flex-1 min-w-0 pb-1">
-                <h1 className="font-display text-xl font-extrabold text-foreground truncate">{profile.display_name || "Artist"}</h1>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <h1 className="font-display text-xl font-extrabold text-foreground truncate">{profile.display_name || "Artist"}</h1>
+                  <UserBadge userId={userId} size={18} />
+                </div>
                 {profile.username && <p className="text-sm text-muted-foreground">@{profile.username}</p>}
-                <div className="mt-1">
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {badgeTier && <BadgeChip tier={badgeTier} />}
                   {isActiveNow ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-600">
                       <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -303,6 +310,7 @@ export default function UserProfilePage() {
                 </div>
               </div>
             </div>
+
 
             {profile.bio && <p className="text-sm text-muted-foreground mb-4">{profile.bio}</p>}
 
