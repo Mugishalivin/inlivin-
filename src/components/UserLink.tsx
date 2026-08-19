@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { User } from "lucide-react";
 import type { ReactNode } from "react";
+import { UserBadge } from "@/components/UserBadge";
+
 
 interface UserLinkProps {
   userId: string;
