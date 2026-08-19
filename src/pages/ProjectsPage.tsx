@@ -6,28 +6,24 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { LoadingCardGrid } from "@/components/LoadingSkeletons";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
-} from "@/components/ui/dialog";
-import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  FolderOpen, Plus, Music, Image, Video, MoreVertical, User,
-  Edit, Trash2, Eye, Globe, Lock, Heart, MessageCircle, Upload,
-  UserPlus, Users, Search, X, Shield, Pen, EyeIcon, LayoutGrid, List, Sparkles
+  FolderOpen, Plus, Music, Image, Video, Globe, Heart,
+  Users, Search, LayoutGrid, List, Sparkles, Mail, ArrowUpDown,
 } from "lucide-react";
+import { CategoryFolders, type FolderCategory } from "@/components/projects/CategoryFolders";
+import { ProjectCard, type ProjectCardData } from "@/components/projects/ProjectCard";
+import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog";
+import { CollaboratorsDialog } from "@/components/projects/CollaboratorsDialog";
+import { InvitationsPanel } from "@/components/projects/InvitationsPanel";
 
-const categories = [
+const categories: FolderCategory[] = [
   { value: "music", label: "Music", icon: Music },
   { value: "visual", label: "Visual Art", icon: Image },
   { value: "video", label: "Video", icon: Video },
@@ -35,10 +31,12 @@ const categories = [
 ];
 
 const collabRoles = [
-  { value: "editor", label: "Editor", icon: Pen },
-  { value: "viewer", label: "Viewer", icon: EyeIcon },
-  { value: "contributor", label: "Contributor", icon: Shield },
+  { value: "editor", label: "Editor", icon: FolderOpen },
+  { value: "viewer", label: "Viewer", icon: FolderOpen },
+  { value: "contributor", label: "Contributor", icon: FolderOpen },
 ];
+
+type SortKey = "newest" | "oldest" | "title";
 
 export default function ProjectsPage() {
   const { user } = useAuth();
@@ -60,6 +58,8 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [sort, setSort] = useState<SortKey>("newest");
+  const [activeTab, setActiveTab] = useState("mine");
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["my-projects"],
@@ -74,38 +74,67 @@ export default function ProjectsPage() {
     enabled: !!user,
   });
 
-  const { data: collabProjects = [] } = useQuery({
-    queryKey: ["collab-projects"],
+  const { data: collabRows = [] } = useQuery({
+    queryKey: ["collab-projects-raw"],
     queryFn: async () => {
-      const { data: collabs } = await supabase
+      const { data } = await supabase
         .from("project_collaborators")
-        .select("project_id, role, status")
-        .eq("user_id", user!.id)
-        .eq("status", "accepted");
-      if (!collabs?.length) return [];
-      const projectIds = collabs.map(c => c.project_id);
-      const { data: projs } = await supabase.from("projects").select("*").in("id", projectIds);
-      return (projs ?? []).map(p => ({ ...p, collabRole: collabs.find(c => c.project_id === p.id)?.role }));
+        .select("id, project_id, role, status")
+        .eq("user_id", user!.id);
+      return data ?? [];
     },
     enabled: !!user,
   });
 
+  const acceptedCollabRows = useMemo(() => collabRows.filter(c => c.status === "accepted"), [collabRows]);
+  const pendingCollabRows = useMemo(() => collabRows.filter(c => c.status === "pending"), [collabRows]);
+
+  const allCollabProjectIds = useMemo(() => [...new Set(collabRows.map(c => c.project_id))], [collabRows]);
+
+  const { data: collabProjectsById = {} } = useQuery({
+    queryKey: ["collab-projects-lookup", allCollabProjectIds],
+    queryFn: async () => {
+      if (!allCollabProjectIds.length) return {} as Record<string, any>;
+      const { data } = await supabase.from("projects").select("*").in("id", allCollabProjectIds);
+      const map: Record<string, any> = {};
+      for (const p of data ?? []) map[p.id] = p;
+      return map;
+    },
+    enabled: allCollabProjectIds.length > 0,
+  });
+
+  const collabProjects = useMemo(
+    () => acceptedCollabRows
+      .map(c => ({ ...(collabProjectsById[c.project_id] || {}), collabRole: c.role }))
+      .filter(p => p.id),
+    [acceptedCollabRows, collabProjectsById]
+  );
+
+  const invitations = useMemo(
+    () => pendingCollabRows
+      .map(c => ({ id: c.id, role: c.role, project: collabProjectsById[c.project_id] }))
+      .filter(inv => inv.project),
+    [pendingCollabRows, collabProjectsById]
+  );
+
   const projectIds = projects.map(p => p.id);
 
   const { data: engagement = { likes: {}, comments: {} } } = useQuery({
-    queryKey: ["project-engagement", projectIds],
+    queryKey: ["project-engagement", projectIds, allCollabProjectIds],
     queryFn: async () => {
+      const allIds = [...new Set([...projectIds, ...allCollabProjectIds])];
       const likes: Record<string, number> = {};
       const comments: Record<string, number> = {};
+      if (!allIds.length) return { likes, comments };
       const [{ data: likeRows }, { data: commentRows }] = await Promise.all([
-        supabase.from("likes").select("project_id").in("project_id", projectIds),
-        supabase.from("comments").select("project_id").in("project_id", projectIds),
+        supabase.from("likes").select("project_id").in("project_id", allIds),
+        supabase.from("comments").select("project_id").in("project_id", allIds),
       ]);
       for (const row of likeRows ?? []) likes[row.project_id as string] = (likes[row.project_id as string] ?? 0) + 1;
       for (const row of commentRows ?? []) comments[row.project_id as string] = (comments[row.project_id as string] ?? 0) + 1;
       return { likes, comments };
     },
-    enabled: projectIds.length > 0,
+    enabled: projectIds.length > 0 || allCollabProjectIds.length > 0,
   });
 
   const { data: collaborators = [] } = useQuery({
@@ -243,11 +272,31 @@ export default function ProjectsPage() {
     },
   });
 
+  const respondInvite = useMutation({
+    mutationFn: async ({ collabId, status }: { collabId: string; status: "accepted" | "rejected" }) => {
+      const { error } = await supabase.from("project_collaborators").update({ status }).eq("id", collabId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["collab-projects-raw"] });
+      toast.success(vars.status === "accepted" ? "Invitation accepted!" : "Invitation declined");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   const getCategoryIcon = (cat: string) => categories.find(c => c.value === cat)?.icon ?? FolderOpen;
+
+  const applySort = (list: any[]) => {
+    const copy = [...list];
+    if (sort === "newest") copy.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    else if (sort === "oldest") copy.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+    else copy.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    return copy;
+  };
 
   const applyFilters = (list: any[]) => {
     const term = search.trim().toLowerCase();
-    return list.filter(p => {
+    const filtered = list.filter(p => {
       const matchesTerm = !term
         || p.title?.toLowerCase().includes(term)
         || p.description?.toLowerCase().includes(term)
@@ -255,102 +304,37 @@ export default function ProjectsPage() {
       const matchesCategory = filterCategory === "all" || p.category === filterCategory;
       return matchesTerm && matchesCategory;
     });
+    return applySort(filtered);
   };
 
-  const filteredProjects = useMemo(() => applyFilters(projects), [projects, search, filterCategory]);
-  const filteredCollabs = useMemo(() => applyFilters(collabProjects), [collabProjects, search, filterCategory]);
+  const filteredProjects = useMemo(() => applyFilters(projects), [projects, search, filterCategory, sort]);
+  const filteredCollabs = useMemo(() => applyFilters(collabProjects), [collabProjects, search, filterCategory, sort]);
+
+  const categoryCounts = useMemo(() => {
+    const source = activeTab === "collabs" ? collabProjects : projects;
+    const counts: Record<string, number> = {};
+    for (const p of source) counts[p.category || "other"] = (counts[p.category || "other"] ?? 0) + 1;
+    return counts;
+  }, [projects, collabProjects, activeTab]);
 
   const stats = [
     { label: "Projects", value: projects.length, icon: FolderOpen },
-    { label: "Collaborations", value: collabProjects.length, icon: Users },
+    { label: "Shared with me", value: collabProjects.length, icon: Users },
     { label: "Public", value: projects.filter(p => p.is_public).length, icon: Globe },
-    { label: "Likes", value: Object.values(engagement.likes).reduce((a: number, b: number) => a + b, 0), icon: Heart },
+    { label: "Likes", value: Object.values(engagement.likes).reduce((a: number, b: number) => a + (b as number), 0), icon: Heart },
   ];
-
-  const renderProjectCard = (project: any, isCollab = false, collabRole?: string) => {
-    const CatIcon = getCategoryIcon(project.category);
-    const isList = view === "list";
-    return (
-      <motion.div
-        key={project.id}
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -4 }}
-        transition={{ type: "spring", stiffness: 260, damping: 24 }}
-      >
-        <Card
-          className="border-border/60 bg-card/60 backdrop-blur hover:border-primary/40 hover:shadow-lg transition-all overflow-hidden group cursor-pointer h-full"
-          onClick={() => navigate(`/projects/${project.id}`)}
-        >
-          <CardContent className={`p-0 ${isList ? "flex items-stretch" : ""}`}>
-            <div className={`relative overflow-hidden bg-secondary ${isList ? "w-32 shrink-0" : "h-40"}`}>
-              {project.cover_url ? (
-                <img src={project.cover_url} alt={project.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-secondary to-secondary/40">
-                  <CatIcon size={isList ? 22 : 36} className="text-muted-foreground/40" />
-                </div>
-              )}
-              <div className="absolute top-2 right-2 flex gap-1">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-background/80 backdrop-blur text-foreground flex items-center gap-1">
-                  {project.is_public ? <Globe size={10} /> : <Lock size={10} />}
-                  {project.is_public ? "Public" : "Private"}
-                </span>
-                {isCollab && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/80 backdrop-blur text-accent-foreground capitalize">{collabRole}</span>
-                )}
-              </div>
-              {!isCollab && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      onClick={(e) => e.stopPropagation()}
-                      className="absolute top-2 left-2 w-7 h-7 rounded-full bg-background/80 backdrop-blur flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreVertical size={14} />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenuItem onClick={() => openEdit(project)}><Edit size={14} className="mr-2" /> Edit</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCollabOpen(project.id)}><UserPlus size={14} className="mr-2" /> Collaborators</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(project.id)}><Trash2 size={14} className="mr-2" /> Delete</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-            <div className="p-4 flex-1 min-w-0">
-              <h3 className="font-display font-bold text-sm text-foreground truncate">{project.title}</h3>
-              {project.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1 mb-2">{project.description}</p>}
-              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1"><Heart size={12} /> {engagement.likes[project.id] ?? 0}</span>
-                <span className="flex items-center gap-1"><MessageCircle size={12} /> {engagement.comments[project.id] ?? 0}</span>
-                <span className="flex items-center gap-1 capitalize"><Eye size={12} /> {project.category}</span>
-              </div>
-              {project.tags && project.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {(project.tags as string[]).slice(0, 3).map(t => (
-                    <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">{t}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    );
-  };
 
   const gridClass = view === "grid"
     ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
     : "flex flex-col gap-3";
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto w-full">
+    <div className="p-3 xs:p-4 md:p-8 max-w-6xl mx-auto w-full overflow-x-hidden">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/10 via-card to-card p-5 md:p-7 mb-6"
+        className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-5 md:p-7 mb-6"
       >
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -367,21 +351,32 @@ export default function ProjectsPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 mt-6">
           {stats.map((stat) => (
-            <div key={stat.label} className="rounded-xl border border-border/60 bg-background/60 backdrop-blur px-3 py-2.5">
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                <stat.icon size={12} /> {stat.label}
+            <div key={stat.label} className="rounded-xl border border-border/60 bg-background/60 backdrop-blur px-2.5 sm:px-3 py-2.5 min-w-0">
+              <div className="flex items-center gap-2 text-[10px] sm:text-[11px] text-muted-foreground truncate">
+                <stat.icon size={12} className="shrink-0" /> <span className="truncate">{stat.label}</span>
               </div>
-              <p className="font-display text-xl font-bold text-foreground mt-0.5">{stat.value}</p>
+              <p className="font-display text-lg sm:text-xl font-bold text-foreground mt-0.5">{stat.value}</p>
             </div>
           ))}
         </div>
       </motion.div>
 
+      {/* Folder-style category grouping */}
+      <div className="mb-5">
+        <CategoryFolders
+          categories={categories}
+          active={filterCategory}
+          onSelect={setFilterCategory}
+          counts={categoryCounts}
+          total={(activeTab === "collabs" ? collabProjects : projects).length}
+        />
+      </div>
+
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mb-6">
+        <div className="relative flex-1 min-w-0">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search projects, tags..."
@@ -390,149 +385,83 @@ export default function ProjectsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="h-10 sm:w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {categories.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <div className="hidden sm:flex items-center gap-1 rounded-lg border border-border p-1">
-          <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setView("grid")}>
-            <LayoutGrid size={15} />
-          </Button>
-          <Button variant={view === "list" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setView("list")}>
-            <List size={15} />
-          </Button>
+        <div className="flex gap-2.5 sm:gap-3">
+          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger className="h-10 flex-1 sm:w-40"><ArrowUpDown size={13} className="mr-1 shrink-0" /><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="title">Title A–Z</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-1 rounded-lg border border-border p-1 shrink-0">
+            <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setView("grid")}>
+              <LayoutGrid size={15} />
+            </Button>
+            <Button variant={view === "list" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setView("list")}>
+              <List size={15} />
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Create / Edit dialog */}
-      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-display">{editingProject ? "Edit Project" : "New Project"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div><Label className="text-xs font-medium">Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} className="mt-1.5" placeholder="Project name" /></div>
-            <div><Label className="text-xs font-medium">Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} className="mt-1.5" placeholder="What's this about?" rows={3} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs font-medium">Category</Label><Select value={category} onValueChange={setCategory}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent>{categories.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label className="text-xs font-medium">Visibility</Label><Select value={isPublic ? "public" : "private"} onValueChange={v => setIsPublic(v === "public")}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="public">Public</SelectItem><SelectItem value="private">Private</SelectItem></SelectContent></Select></div>
-            </div>
-            <div><Label className="text-xs font-medium">Tags</Label><Input value={tags} onChange={e => setTags(e.target.value)} className="mt-1.5" placeholder="beats, lo-fi, chill (comma separated)" /></div>
-            <div className="border rounded-lg p-3 bg-secondary/20">
-              <div className="flex items-center gap-2 mb-2">
-                <input type="checkbox" id="protect" checked={isProtected} onChange={e => setIsProtected(e.target.checked)} className="w-4 h-4" />
-                <Label htmlFor="protect" className="text-xs font-medium cursor-pointer"><Lock className="w-3 h-3 inline mr-1" />Password Protect This Project</Label>
-              </div>
-              {isProtected && (
-                <Input value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5" placeholder="Set password" type="password" />
-              )}
-            </div>
-            <div>
-              <Label className="text-xs font-medium">Cover Image</Label>
-              <div className="mt-1.5">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  <Upload size={14} />{coverFile ? coverFile.name : "Choose file..."}
-                  <input type="file" accept="image/*" className="hidden" onChange={e => setCoverFile(e.target.files?.[0] || null)} />
-                </label>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="hero" onClick={() => saveMutation.mutate()} disabled={!title.trim() || saveMutation.isPending}>
-              {saveMutation.isPending ? "Saving..." : editingProject ? "Update" : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProjectFormDialog
+        open={open}
+        onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}
+        editing={!!editingProject}
+        categories={categories}
+        title={title} setTitle={setTitle}
+        description={description} setDescription={setDescription}
+        category={category} setCategory={setCategory}
+        tags={tags} setTags={setTags}
+        isPublic={isPublic} setIsPublic={setIsPublic}
+        isProtected={isProtected} setIsProtected={setIsProtected}
+        password={password} setPassword={setPassword}
+        coverFile={coverFile} setCoverFile={setCoverFile}
+        onSave={() => saveMutation.mutate()}
+        saving={saveMutation.isPending}
+      />
 
       {/* Collaborators Dialog */}
-      <Dialog open={!!collabOpen} onOpenChange={(v) => { if (!v) { setCollabOpen(null); setInviteSearch(""); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-2"><Users size={18} /> Collaborators</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label className="text-xs font-medium">Invite Artist</Label>
-              <div className="flex gap-2 mt-1.5">
-                <div className="relative flex-1">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search artists..."
-                    className="pl-9 h-9"
-                    value={inviteSearch}
-                    onChange={e => setInviteSearch(e.target.value)}
-                  />
-                </div>
-                <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger className="w-28 h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {collabRoles.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              {inviteResults.length > 0 && (
-                <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-                  {inviteResults.map(p => (
-                    <button
-                      key={p.id}
-                      className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-secondary/50 text-left text-sm"
-                      onClick={() => collabOpen && inviteMutation.mutate({ projectId: collabOpen, userId: p.user_id })}
-                    >
-                      <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
-                        {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" /> : <User size={12} className="text-muted-foreground" />}
-                      </div>
-                      <span>{p.display_name || "Artist"}</span>
-                      <UserPlus size={14} className="ml-auto text-primary" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label className="text-xs font-medium">Current Collaborators</Label>
-              <div className="mt-2 space-y-2">
-                {collaborators.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">No collaborators yet</p>
-                ) : (
-                  collaborators.map((c: any) => (
-                    <div key={c.id} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30">
-                      <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
-                        {c.profile?.avatar_url ? <img src={c.profile.avatar_url} alt="" className="w-full h-full object-cover" /> : <User size={12} className="text-muted-foreground" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{c.profile?.display_name || "Artist"}</p>
-                        <p className="text-[10px] text-muted-foreground capitalize">{c.role} · {c.status}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeCollaborator.mutate(c.id)}>
-                        <X size={14} />
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CollaboratorsDialog
+        open={!!collabOpen}
+        onOpenChange={(v) => { if (!v) { setCollabOpen(null); setInviteSearch(""); } }}
+        collabRoles={collabRoles}
+        inviteSearch={inviteSearch} setInviteSearch={setInviteSearch}
+        inviteRole={inviteRole} setInviteRole={setInviteRole}
+        inviteResults={inviteResults}
+        collaborators={collaborators as any}
+        onInvite={(userId) => collabOpen && inviteMutation.mutate({ projectId: collabOpen, userId })}
+        onRemove={(id) => removeCollaborator.mutate(id)}
+      />
 
       {isLoading ? (
         <LoadingCardGrid count={6} />
       ) : (
-        <Tabs defaultValue="mine">
-          <TabsList className="mb-5">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-5 flex-wrap h-auto">
             <TabsTrigger value="mine">My Projects ({filteredProjects.length})</TabsTrigger>
-            <TabsTrigger value="collabs">Collaborations ({filteredCollabs.length})</TabsTrigger>
+            <TabsTrigger value="collabs">Shared with me ({filteredCollabs.length})</TabsTrigger>
+            <TabsTrigger value="invites" className="gap-1"><Mail size={12} /> Invitations {invitations.length > 0 && `(${invitations.length})`}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="mine">
             {filteredProjects.length > 0 ? (
               <div className={gridClass}>
-                {filteredProjects.map(project => renderProjectCard(project))}
+                {filteredProjects.map(project => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project as ProjectCardData}
+                    view={view}
+                    getCategoryIcon={getCategoryIcon}
+                    likeCount={engagement.likes[project.id] ?? 0}
+                    commentCount={engagement.comments[project.id] ?? 0}
+                    onEdit={openEdit}
+                    onManageCollaborators={setCollabOpen}
+                    onDelete={(id) => deleteMutation.mutate(id)}
+                  />
+                ))}
               </div>
             ) : (
               <Card className="border-border/50 border-dashed">
@@ -557,7 +486,18 @@ export default function ProjectsPage() {
           <TabsContent value="collabs">
             {filteredCollabs.length > 0 ? (
               <div className={gridClass}>
-                {filteredCollabs.map((project: any) => renderProjectCard(project, true, project.collabRole))}
+                {filteredCollabs.map((project: any) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project as ProjectCardData}
+                    view={view}
+                    getCategoryIcon={getCategoryIcon}
+                    likeCount={engagement.likes[project.id] ?? 0}
+                    commentCount={engagement.comments[project.id] ?? 0}
+                    isCollab
+                    collabRole={project.collabRole}
+                  />
+                ))}
               </div>
             ) : (
               <Card className="border-border/50 border-dashed">
@@ -568,6 +508,14 @@ export default function ProjectsPage() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="invites">
+            <InvitationsPanel
+              invitations={invitations as any}
+              onAccept={(id) => respondInvite.mutate({ collabId: id, status: "accepted" })}
+              onDecline={(id) => respondInvite.mutate({ collabId: id, status: "rejected" })}
+            />
           </TabsContent>
         </Tabs>
       )}
