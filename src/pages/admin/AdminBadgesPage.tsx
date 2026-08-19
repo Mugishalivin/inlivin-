@@ -8,21 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { CreatorBadge } from "@/components/CreatorBadges";
+import { CreatorBadge, BADGE_TYPES } from "@/components/CreatorBadges";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Verified, Flame, TrendingUp, Star, Award, Zap, Plus, Trash2, Search, User } from "lucide-react";
+import { Plus, Trash2, Search, User } from "lucide-react";
 import { motion } from "framer-motion";
 
-const badgeTypes = [
-  { value: "verified", label: "Verified Creator", icon: Verified },
-  { value: "top_collaborator", label: "Top Collaborator", icon: Star },
-  { value: "trending_creator", label: "Trending Creator", icon: TrendingUp },
-  { value: "consistent_contributor", label: "Consistent Contributor", icon: Zap },
-  { value: "community_helper", label: "Community Helper", icon: Award },
-  { value: "master_craftsman", label: "Master Craftsman", icon: Flame },
-  { value: "rising_star", label: "Rising Star", icon: Star },
-];
+const badgeTypes = BADGE_TYPES;
 
 type BadgeRow = {
   id: string;
@@ -262,8 +254,8 @@ export function AdminBadgesPage() {
         {[
           { label: "Total Creators", value: profiles.length },
           { label: "Badges Awarded", value: activeBadges.length },
-          { label: "Verified Creators", value: countOf("verified") },
-          { label: "Top Collaborators", value: countOf("top_collaborator") },
+          { label: "Verified (Blue)", value: countOf("verified") },
+          { label: "Premium (Gold)", value: countOf("premium") },
         ].map((stat) => (
           <Card key={stat.label}>
             <CardHeader className="pb-2">
