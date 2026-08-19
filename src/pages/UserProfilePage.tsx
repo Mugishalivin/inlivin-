@@ -15,6 +15,7 @@ import {
   FolderOpen, ArrowLeft, Music, Image, Video, ExternalLink, FileText, Plus, Trash2, X
 } from "lucide-react";
 import { ReportDialog } from "@/components/ReportDialog";
+import { UserBadge, BadgeChip, useUserBadge } from "@/components/UserBadge";
 
 const categoryIcons: Record<string, any> = { music: Music, visual: Image, video: Video, other: FolderOpen };
 const sb = supabase as any;
@@ -252,6 +253,8 @@ export default function UserProfilePage() {
   const lastSeen = (profile as any)?.last_seen_at ? new Date((profile as any).last_seen_at) : null;
   const isActiveNow = !!lastSeen && Date.now() - lastSeen.getTime() <= 2 * 60 * 1000;
   const lastActiveLabel = lastSeen ? `Last active ${formatDistanceToNow(lastSeen, { addSuffix: true })}` : null;
+
+  const badgeTier = useUserBadge(userId);
 
   if (isLoading) {
     return (
