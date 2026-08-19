@@ -21,10 +21,14 @@ export function UserAvatar({ userId, avatarUrl, size = 10, className = "" }: { u
   );
 }
 
-export function UserName({ userId, name, className = "" }: { userId: string; name?: string | null; className?: string }) {
+export function UserName({ userId, name, className = "", badgeSize = 14 }: { userId: string; name?: string | null; className?: string; badgeSize?: number }) {
   return (
-    <Link to={`/profile/${userId}`} className={`hover:text-primary hover:underline transition-colors ${className}`}>
-      {name || "Artist"}
-    </Link>
+    <span className="inline-flex items-center gap-1 min-w-0">
+      <Link to={`/profile/${userId}`} className={`truncate hover:text-primary hover:underline transition-colors ${className}`}>
+        {name || "Artist"}
+      </Link>
+      <UserBadge userId={userId} size={badgeSize} />
+    </span>
   );
 }
+
