@@ -24,6 +24,8 @@ import {
   Pause, Play, Volume2, VolumeX, Eye, Trash2, Pin, Search,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { UserBadge } from "@/components/UserBadge";
+import { UserName, UserAvatar } from "@/components/UserLink";
 
 type Profile = { user_id: string; display_name: string | null; avatar_url: string | null; username?: string | null };
 type Media = { id: string; media_url: string; media_type: string; thumbnail_url?: string | null; display_order: number };
@@ -160,7 +162,10 @@ function StoriesBar({ onOpenCreate, onOpenStory }: { onOpenCreate: () => void; o
                     </Avatar>
                   </div>
                 </div>
-                <span className="text-xs truncate max-w-[64px]">{first.profile?.display_name || "User"}</span>
+                <span className="text-xs truncate max-w-[64px] inline-flex items-center gap-0.5">
+                  <span className="truncate">{first.profile?.display_name || "User"}</span>
+                  <UserBadge userId={uid} size={10} />
+                </span>
               </motion.button>
             );
           })}
@@ -254,7 +259,7 @@ function StoryViewer({ storyId, onClose }: { storyId: string | null; onClose: ()
             <AvatarImage src={current.profile?.avatar_url || undefined} />
             <AvatarFallback>{current.profile?.display_name?.[0]}</AvatarFallback>
           </Avatar>
-          <span className="text-white text-sm font-medium">{current.profile?.display_name}</span>
+          <span className="text-white text-sm font-medium inline-flex items-center gap-1">{current.profile?.display_name}<UserBadge userId={current.user_id} size={13} /></span>
           <span className="text-white/60 text-xs ml-auto">{formatDistanceToNow(new Date(current.created_at), { addSuffix: true })}</span>
           <Button variant="ghost" size="icon" className="text-white" onClick={onClose}><X /></Button>
         </div>
@@ -390,25 +395,25 @@ function PostCard({ post, onUpdate }: { post: Post; onUpdate: () => void }) {
       className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow"
     >
       {/* Header */}
-      <div className="flex items-center gap-3 p-3">
-        <button onClick={() => navigate(`/profile/${post.user_id}`)} className="flex items-center gap-3 flex-1 min-w-0">
+      <div className="flex items-center gap-2.5 p-3">
+        <button onClick={() => navigate(`/profile/${post.user_id}`)} className="shrink-0">
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary via-pink-500 to-amber-500 p-[2px]">
             <Avatar className="w-full h-full ring-2 ring-background">
               <AvatarImage src={post.profile?.avatar_url || undefined} />
               <AvatarFallback>{post.profile?.display_name?.[0]}</AvatarFallback>
             </Avatar>
           </div>
-          <div className="flex-1 min-w-0 text-left">
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-sm truncate">{post.profile?.display_name || "User"}</span>
-              {post.is_pinned && <Pin className="w-3 h-3 text-primary" />}
-            </div>
-            {post.location && <div className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{post.location}</div>}
-          </div>
         </button>
+        <div className="flex-1 min-w-0 text-left">
+          <div className="flex items-center gap-1.5 font-semibold text-sm">
+            <UserName userId={post.user_id} name={post.profile?.display_name} className="font-semibold" />
+            {post.is_pinned && <Pin className="w-3 h-3 text-primary shrink-0" />}
+          </div>
+          {post.location && <div className="text-xs text-muted-foreground flex items-center gap-1 truncate"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{post.location}</span></div>}
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9"><MoreHorizontal className="w-4 h-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={sharePost}>Copy link</DropdownMenuItem>
@@ -563,8 +568,11 @@ function PostCard({ post, onUpdate }: { post: Post; onUpdate: () => void }) {
         )}
 
         {post.caption && (
-          <div className="text-sm">
-            <span className="font-semibold mr-1.5">{post.profile?.display_name}</span>
+          <div className="text-sm break-words">
+            <span className="font-semibold mr-1.5 inline-flex items-center gap-1">
+              {post.profile?.display_name}
+              <UserBadge userId={post.user_id} size={12} />
+            </span>
             <span>{post.caption}</span>
           </div>
         )}
@@ -601,8 +609,11 @@ function PostCard({ post, onUpdate }: { post: Post; onUpdate: () => void }) {
                     <AvatarFallback>{c.profile?.display_name?.[0]}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm">
-                      <span className="font-semibold mr-1.5">{c.profile?.display_name || "User"}</span>
+                    <div className="text-sm break-words">
+                      <span className="font-semibold mr-1.5 inline-flex items-center gap-1">
+                        {c.profile?.display_name || "User"}
+                        <UserBadge userId={c.user_id} size={12} />
+                      </span>
                       <span>{c.content}</span>
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -913,51 +924,68 @@ export default function PostsPage() {
   const openCreate = (type: string) => { setCreateType(type); setCreateOpen(true); };
 
   return (
-    <div className="relative min-h-screen px-4 md:px-8 py-6 max-w-[1200px] mx-auto">
+    <div className="relative min-h-screen px-3 sm:px-4 md:px-8 py-4 sm:py-6 max-w-[1200px] mx-auto overflow-x-hidden">
       <FloatingWords />
 
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-6 flex-wrap gap-3"
+        className="flex flex-col gap-3 mb-5 sm:mb-6"
       >
-        <div>
-          <h1 className="font-display text-3xl md:text-5xl font-extrabold tracking-tight">
-            <motion.span
-              className="bg-gradient-to-r from-primary via-pink-500 to-amber-500 bg-clip-text text-transparent"
-              animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
-              transition={{ duration: 8, repeat: Infinity }}
-              style={{ backgroundSize: "200% 200%" }}
-            >
-              Posts
-            </motion.span>
-            <span className="text-primary">.</span>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">Share, react, discover. Your creative pulse.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search posts, tags, people" className="pl-9 w-56" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight">
+              <motion.span
+                className="bg-gradient-to-r from-primary via-pink-500 to-amber-500 bg-clip-text text-transparent"
+                animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+                transition={{ duration: 8, repeat: Infinity }}
+                style={{ backgroundSize: "200% 200%" }}
+              >
+                Posts
+              </motion.span>
+              <span className="text-primary">.</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 hidden sm:block">Share, react, discover. Your creative pulse.</p>
           </div>
-          <Button onClick={() => openCreate("post")} variant="hero" className="gap-1.5">
-            <Plus className="w-4 h-4" /> Create
+          <Button onClick={() => openCreate("post")} variant="hero" className="gap-1.5 shrink-0">
+            <Plus className="w-4 h-4" /> <span className="hidden xs:inline">Create</span>
           </Button>
         </div>
+        <div className="relative w-full">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search posts, tags, people" className="pl-9 w-full" />
+        </div>
       </motion.div>
+
+      {/* Sticky composer entry */}
+      <motion.button
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={() => openCreate("post")}
+        className="sticky top-2 z-20 w-full flex items-center gap-3 bg-card/80 backdrop-blur border border-border rounded-full px-3 sm:px-4 py-2.5 mb-5 shadow-sm hover:shadow-md hover:border-primary/40 transition-all text-left"
+      >
+        <Avatar className="w-8 h-8 shrink-0">
+          <AvatarImage src={user?.user_metadata?.avatar_url || undefined} />
+          <AvatarFallback>{user?.email?.[0]?.toUpperCase() || "U"}</AvatarFallback>
+        </Avatar>
+        <span className="text-sm text-muted-foreground truncate flex-1">Share something creative...</span>
+        <ImageIcon className="w-4 h-4 text-primary shrink-0" />
+      </motion.button>
 
       {/* Stories */}
       <StoriesBar onOpenCreate={() => openCreate("story")} onOpenStory={setStoryId} />
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-        <TabsList className="bg-card/50 backdrop-blur border">
-          <TabsTrigger value="feed">Feed</TabsTrigger>
-          <TabsTrigger value="reels"><Film className="w-3.5 h-3.5 mr-1" />Reels</TabsTrigger>
-          <TabsTrigger value="trending"><Flame className="w-3.5 h-3.5 mr-1" />Trending</TabsTrigger>
-          <TabsTrigger value="saved"><Bookmark className="w-3.5 h-3.5 mr-1" />Saved</TabsTrigger>
-        </TabsList>
+        <ScrollArea className="w-full">
+          <TabsList className="bg-card/50 backdrop-blur border w-max min-w-full sm:w-auto justify-start">
+            <TabsTrigger value="feed" className="gap-1.5">Feed</TabsTrigger>
+            <TabsTrigger value="reels" className="gap-1.5"><Film className="w-3.5 h-3.5" />Reels</TabsTrigger>
+            <TabsTrigger value="trending" className="gap-1.5"><Flame className="w-3.5 h-3.5" />Trending</TabsTrigger>
+            <TabsTrigger value="saved" className="gap-1.5"><Bookmark className="w-3.5 h-3.5" />Saved</TabsTrigger>
+          </TabsList>
+        </ScrollArea>
 
         <TabsContent value="feed">
           {loading ? (
@@ -969,14 +997,14 @@ export default function PostsPage() {
               <Button variant="hero" onClick={() => openCreate("post")}>Create your first post</Button>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-5 max-w-2xl mx-auto md:max-w-none">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 max-w-2xl mx-auto md:max-w-none">
               {filteredPosts.map((p) => <div key={p.id} id={`post-${p.id}`}><PostCard post={p} onUpdate={load} /></div>)}
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="reels">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
             {reels.map((r) => {
               const m = r.media?.[0];
               return (
@@ -993,7 +1021,10 @@ export default function PostsPage() {
                   ) : null}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                   <div className="absolute bottom-2 left-2 right-2 text-white">
-                    <div className="text-xs font-semibold truncate">{r.profile?.display_name}</div>
+                    <div className="text-xs font-semibold truncate inline-flex items-center gap-1">
+                      {r.profile?.display_name}
+                      <UserBadge userId={r.user_id} size={11} />
+                    </div>
                     <div className="text-[11px] line-clamp-2 opacity-90">{r.caption}</div>
                   </div>
                   <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 backdrop-blur text-white text-[11px] rounded-full px-2 py-0.5">
@@ -1013,7 +1044,7 @@ export default function PostsPage() {
         </TabsContent>
 
         <TabsContent value="trending">
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-1 sm:gap-1.5">
             {trending.map((p) => {
               const m = p.media?.[0];
               return (
@@ -1038,7 +1069,7 @@ export default function PostsPage() {
         </TabsContent>
 
         <TabsContent value="saved">
-          <div className="grid md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             {saved.map((p) => <PostCard key={p.id} post={p} onUpdate={load} />)}
             {saved.length === 0 && <p className="col-span-full text-center text-muted-foreground py-12">No saved posts yet</p>}
           </div>
