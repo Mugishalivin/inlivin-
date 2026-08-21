@@ -40,7 +40,7 @@ const referenceRoutes: Record<string, (refId: string) => string> = {
 };
 
 const typeFallbackRoutes: Record<string, string> = {
-  follow: "/explore",
+  follow: "/search",
   like: "/projects",
   comment: "/feed",
   message: "/messages",

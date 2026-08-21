@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PostComposerDialog } from "@/components/PostComposerDialog";
 
 type FeedKind = "post" | "project";
 type FeedItem = {
@@ -106,6 +107,7 @@ export default function FeedPage() {
   const [activeKind, setActiveKind] = useState<"all" | FeedKind | "media" | "mine">("all");
   const [query, setQuery] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["dynamic-feed", user?.id],
@@ -263,7 +265,7 @@ export default function FeedPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => navigate("/posts")}>
+              <Button onClick={() => setComposerOpen(true)}>
                 <Plus className="h-4 w-4" />
                 New post
               </Button>
@@ -378,10 +380,12 @@ export default function FeedPage() {
             <Sparkles className="mb-4 h-10 w-10 text-primary" />
             <h3 className="font-display text-xl font-bold">No feed items match</h3>
             <p className="mt-1 text-sm text-muted-foreground">Clear filters or create a new post to get the board moving.</p>
-            <Button className="mt-5" onClick={() => navigate("/posts")}>Create post</Button>
+            <Button className="mt-5" onClick={() => setComposerOpen(true)}>Create post</Button>
           </CardContent>
         </Card>
       )}
+
+      <PostComposerDialog open={composerOpen} onOpenChange={setComposerOpen} onCreated={() => refetch()} />
     </div>
   );
 }
@@ -461,3 +465,4 @@ function FeedCard({ item, profile, onOpen, compact = false }: { item: FeedItem; 
     </motion.article>
   );
 }
+

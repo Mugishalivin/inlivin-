@@ -30,9 +30,8 @@ import { AdminBadgesPage } from "./pages/admin/AdminBadgesPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import MessagesPage from "./pages/MessagesPage";
-import ExplorePage from "./pages/ExplorePage";
+import SearchPage from "./pages/SearchPage";
 import FeedPage from "./pages/FeedPage";
-import PostsPage from "./pages/PostsPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import CreateEventPage from "./pages/CreateEventPage";
 import EventsPage from "./pages/EventsPage";
@@ -204,11 +203,12 @@ const App = () => (
               >
                 <Route path="/dashboard" element={<AdminAwareDashboardRoute />} />
                 <Route path="/feed" element={<FeedPage />} />
-                <Route path="/posts" element={<PostsPage />} />
+                <Route path="/posts" element={<Navigate to="/feed" replace />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
                 <Route path="/messages" element={<MessagesPage />} />
-                <Route path="/explore" element={<ExplorePage />} />
+                <Route path="/search" element={<SearchPage />} />
+                <Route path="/explore" element={<Navigate to="/search" replace />} />
                 <Route path="/events" element={<EventsPage />} />
                 <Route path="/create-event" element={<CreateEventPage />} />
                 <Route path="/events/:eventId" element={<EventDetailPage />} />
@@ -218,7 +218,7 @@ const App = () => (
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/profile/:userId" element={<UserProfilePage />} />
                 <Route path="/studio" element={<ContentPipelinePage />} />
-                <Route path="/updates" element={<Navigate to="/posts" replace />} />
+                <Route path="/updates" element={<Navigate to="/feed" replace />} />
                 <Route path="/marketplace" element={<MarketplacePage />} />
                 <Route path="/marketplace/:itemId" element={<MarketplaceDetailPage />} />
                 <Route path="/selling/:itemId" element={<MarketplaceDetailPage />} />

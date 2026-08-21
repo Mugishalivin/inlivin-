@@ -2,7 +2,7 @@ import {
   Home, FolderOpen, MessageCircle, Compass, Settings, LogOut, User,
   Bell, Globe, Calendar, BarChart3, Bookmark, Users, Megaphone,
   LayoutDashboard, FileText, Shield, Activity, Database, ArrowLeftRight,
-  ShoppingCart, TrendingUp, Radio, Sparkles
+  ShoppingCart, TrendingUp, Radio, Sparkles, Search
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink } from "@/components/NavLink";
@@ -29,10 +29,10 @@ import { readUpdatesSeenAt } from "@/lib/update-feed";
 
 const mainNav = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Posts", url: "/posts", icon: Globe },
+  { title: "Feed", url: "/feed", icon: Globe },
   { title: "Projects", url: "/projects", icon: FolderOpen },
   { title: "Messages", url: "/messages", icon: MessageCircle },
-  { title: "Explore", url: "/explore", icon: Compass },
+  { title: "Search", url: "/search", icon: Search },
 ];
 
 const secondaryNav = [
