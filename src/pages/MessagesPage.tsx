@@ -193,20 +193,14 @@ export default function MessagesPage() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const handledChatWith = useRef<string | null>(null);
   useEffect(() => {
-    if (chatWithUserId && user) {
-      // Skip when a 1:1 conversation with this user is already present to avoid duplicate threads
-      const existing = conversations.find((c) =>
-        c.participants?.some((p) => p.user_id === chatWithUserId) && c.participants?.length === 1
-      );
-      if (existing) {
-        setActiveConvo(existing.id ?? null);
-        return;
-      }
+    if (chatWithUserId && user && handledChatWith.current !== chatWithUserId) {
+      handledChatWith.current = chatWithUserId;
       startConversation.mutate(chatWithUserId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatWithUserId, user, conversations]);
+  }, [chatWithUserId, user]);
 
   // Fetch conversations (batch load participants + profiles + last message)
   const { data: conversations = [], isLoading: convoLoading } = useQuery({
