@@ -367,7 +367,7 @@ export default function UserProfilePage() {
               <p className="text-xs text-muted-foreground">Recent updates, drops, and notes from this creator.</p>
             </div>
             {isOwnProfile && (
-              <Button variant="outline" size="sm" onClick={() => navigate("/posts")}>
+              <Button variant="outline" size="sm" onClick={() => navigate("/feed")}>
                 <Plus size={14} className="mr-1" /> New post
               </Button>
             )}
@@ -457,7 +457,7 @@ export default function UserProfilePage() {
                 <FileText size={28} className="mb-3 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">{isOwnProfile ? "You have not published any posts yet." : "No public posts yet."}</p>
                 {isOwnProfile && (
-                  <Button className="mt-4" size="sm" onClick={() => navigate("/posts")}>
+                  <Button className="mt-4" size="sm" onClick={() => navigate("/feed")}>
                     Create your first post
                   </Button>
                 )}

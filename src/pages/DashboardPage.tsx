@@ -367,7 +367,7 @@ export default function DashboardPage() {
                   <Compass size={28} className="text-accent mx-auto mb-2" />
                   <h4 className="font-display font-bold text-sm text-foreground mb-1">Discover Artists</h4>
                   <p className="text-[11px] text-muted-foreground mb-3">Find collaborators, connect with creators in your genre.</p>
-                  <Button variant="hero" size="sm" className="w-full" onClick={() => navigate("/explore")}>
+                  <Button variant="hero" size="sm" className="w-full" onClick={() => navigate("/search")}>
                     Explore <ArrowRight size={14} />
                   </Button>
                 </CardContent>

@@ -151,14 +151,26 @@ export default function MessagesPage() {
   const chatWithUserId = searchParams.get("chatWith");
   const startConversation = useMutation({
     mutationFn: async (otherUserId: string) => {
+      // Find an existing 1:1 conversation (exactly the two of us) so replies land in the right thread
       const { data: myConvos } = await supabase
         .from("conversation_participants").select("conversation_id").eq("user_id", user!.id);
-      if (myConvos?.length) {
-        for (const mc of myConvos) {
-          const { data: otherPart } = await supabase
-            .from("conversation_participants").select("id")
-            .eq("conversation_id", mc.conversation_id).eq("user_id", otherUserId).maybeSingle();
-          if (otherPart) return mc.conversation_id;
+      const myIds = (myConvos ?? []).map((row: any) => row.conversation_id as string);
+      if (myIds.length) {
+        const { data: allRows } = await supabase
+          .from("conversation_participants")
+          .select("conversation_id, user_id")
+          .in("conversation_id", myIds);
+        const byConvo = new Map<string, string[]>();
+        (allRows ?? []).forEach((row: any) => {
+          const list = byConvo.get(row.conversation_id) ?? [];
+          list.push(row.user_id);
+          byConvo.set(row.conversation_id, list);
+        });
+        for (const [convoId, members] of byConvo.entries()) {
+          const unique = Array.from(new Set(members));
+          if (unique.length === 2 && unique.includes(user!.id) && unique.includes(otherUserId)) {
+            return convoId;
+          }
         }
       }
       const convoId = crypto.randomUUID();
