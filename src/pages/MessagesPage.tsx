@@ -195,20 +195,18 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (chatWithUserId && user) {
-      // Skip when a conversation with this user is already active to avoid duplicate threads
-      if (activeConvo) {
-        const matching = Object.keys(conversationsByKey ?? {}).find((key) => {
-          const c = conversationsByKey?.[key];
-          return c && (c.user_id === chatWithUserId || c.participantId === chatWithUserId);
-        });
-        if (matching) {
-          setActiveConvo(conversationsByKey![matching].id ?? null);
-          return;
-        }
+      // Skip when a 1:1 conversation with this user is already present to avoid duplicate threads
+      const existing = conversations.find((c) =>
+        c.participants?.some((p) => p.user_id === chatWithUserId) && c.participants?.length === 1
+      );
+      if (existing) {
+        setActiveConvo(existing.id ?? null);
+        return;
       }
       startConversation.mutate(chatWithUserId);
     }
-  }, [chatWithUserId, startConversation, user, activeConvo, conversationsByKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatWithUserId, user, conversations]);
 
   // Fetch conversations (batch load participants + profiles + last message)
   const { data: conversations = [], isLoading: convoLoading } = useQuery({
