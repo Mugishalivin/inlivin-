@@ -239,22 +239,45 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
     if (!userId || signal.to_user_id !== userId) return;
     const from = signal.from_user_id as string;
     const pc = getPeer(from);
+    const flushCandidates = async () => {
+      const queued = pendingCandidatesRef.current.get(from);
+      if (!queued?.length) return;
+      pendingCandidatesRef.current.delete(from);
+      for (const candidate of queued) {
+        try {
+          await pc.addIceCandidate(candidate);
+        } catch {
+          /* ignore stale candidate */
+        }
+      }
+    };
+
     try {
       if (signal.kind === "offer") {
         await pc.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
+        await flushCandidates();
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await sendSignal(from, "answer", { sdp: answer.sdp, type: answer.type });
       } else if (signal.kind === "answer") {
         if (pc.signalingState === "have-local-offer") {
           await pc.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
+          await flushCandidates();
         }
       } else if (signal.kind === "ice") {
-        await pc.addIceCandidate(signal.payload as RTCIceCandidateInit);
+        const candidate = signal.payload as RTCIceCandidateInit;
+        if (!pc.remoteDescription || !pc.remoteDescription.type) {
+          const queued = pendingCandidatesRef.current.get(from) ?? [];
+          queued.push(candidate);
+          pendingCandidatesRef.current.set(from, queued);
+        } else {
+          await pc.addIceCandidate(candidate);
+        }
       }
     } catch {
       /* ignore late/duplicate signals */
     }
+
   }, [getPeer, sendSignal, userId]);
 
   /* --------------------------- subscriptions --------------------------- */
