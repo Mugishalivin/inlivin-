@@ -1591,74 +1591,22 @@ const sendMessage = useMutation({
           </DialogContent>
         </Dialog>
 
-        <Dialog open={!!previewAttachment} onOpenChange={() => setPreviewAttachment(null)}>
-          <DialogContent className="sm:max-w-3xl overflow-hidden border border-black/10 bg-transparent p-0 text-black shadow-none backdrop-blur-3xl dark:border-white/10 dark:text-white">
-            {previewAttachment && (
-              <div className="relative min-h-[72vh] p-3 text-black sm:p-5 dark:text-white">
-                <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-                  <Button asChild size="sm" className="h-8 border border-black/10 bg-white/90 text-slate-950 hover:bg-white dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">
-                    <a href={previewAttachment.url} download>Download</a>
-                  </Button>
-                </div>
+        <MediaViewer
+          item={
+            previewAttachment
+              ? {
+                  url: previewAttachment.url,
+                  name: previewAttachment.name,
+                  mime: previewAttachment.mime,
+                  kind: previewAttachment.kind,
+                  subtitle: previewAttachment.senderName,
+                  avatarUrl: previewAttachment.avatarUrl,
+                }
+              : null
+          }
+          onClose={() => setPreviewAttachment(null)}
+        />
 
-                <div className="flex min-h-[72vh] items-center justify-center">
-                  {previewAttachment.kind === "audio" ? (
-                    <div className="flex w-full max-w-xl flex-col items-center gap-5 rounded-[2rem] border border-black/10 bg-white/70 p-8 text-center shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60">
-                      <div className="relative">
-                        <div className="absolute inset-0 rounded-full bg-cyan-400/20 blur-2xl" />
-                        <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-black/10 bg-white/30 shadow-xl dark:border-white/20 dark:bg-white/15">
-                          {previewAttachment.avatarUrl ? (
-                            <img src={previewAttachment.avatarUrl} alt={previewAttachment.senderName || "Artist"} className="h-full w-full object-cover" />
-                          ) : (
-                            <User size={28} className="text-black/80 dark:text-white/80" />
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm text-black/70 dark:text-white/70">{previewAttachment.senderName || "Artist"}</p>
-                        <p className="mt-1 text-xl font-semibold text-black dark:text-white">{previewAttachment.name || "Audio file"}</p>
-                      </div>
-                      <div className="flex items-end gap-1">
-                        {[10, 16, 8, 20, 13, 24, 11, 22, 15, 18, 9, 26].map((height, index) => (
-                          <motion.span
-                            key={index}
-                            animate={{ height: [height, height + 10, height - 2, height + 6] }}
-                            transition={{
-                              duration: 0.8 + (index % 3) * 0.08,
-                              repeat: Infinity,
-                              repeatType: "mirror",
-                              ease: "easeInOut",
-                              delay: index * 0.04,
-                            }}
-                            className="w-2 rounded-full bg-gradient-to-t from-cyan-400 via-fuchsia-400 to-emerald-300"
-                            style={{ height }}
-                          />
-                        ))}
-                      </div>
-                        <audio controls autoPlay className="w-full rounded-2xl bg-white/10 dark:bg-white/10" src={previewAttachment.url} />
-                      </div>
-                    ) : previewAttachment.kind === "image" ? (
-                      <img src={previewAttachment.url} alt={previewAttachment.name || "Attachment"} className="mx-auto max-h-[72vh] max-w-full rounded-[1.5rem] object-contain shadow-2xl ring-1 ring-white/10" />
-                    ) : previewAttachment.kind === "video" ? (
-                      <video controls className="mx-auto max-h-[72vh] w-full max-w-4xl rounded-[1.5rem] bg-black shadow-2xl ring-1 ring-white/10" src={previewAttachment.url} />
-                    ) : previewAttachment.mime === "application/pdf" || previewAttachment.url.toLowerCase().includes(".pdf") ? (
-                      <iframe src={previewAttachment.url} title={previewAttachment.name || "PDF preview"} className="h-[72vh] w-full rounded-[1.5rem] border border-white/10 bg-white shadow-2xl" />
-                    ) : (
-                    <div className="flex w-full max-w-xl flex-col items-center gap-4 rounded-[2rem] border border-black/10 bg-white/70 p-8 text-center shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60">
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full border border-black/10 bg-white/30 text-black shadow-xl dark:border-white/20 dark:bg-white/15 dark:text-white">
-                        <Paperclip size={28} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-black dark:text-white">{previewAttachment.name || "File preview unavailable"}</p>
-                        <p className="mt-1 text-sm text-black/70 dark:text-white/70">Download this file.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
 
         <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
           <DialogContent className="border-white/15 bg-white/10 text-white backdrop-blur-2xl sm:max-w-md">
