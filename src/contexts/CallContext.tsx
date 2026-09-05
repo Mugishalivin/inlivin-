@@ -198,7 +198,8 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
     peersRef.current.set(peerId, pc);
 
     localStreamRef.current?.getTracks().forEach((track) => {
-      pc.addTrack(track, localStreamRef.current as MediaStream);
+      const already = pc.getSenders().some((s) => s.track && s.track.id === track.id);
+      if (!already) pc.addTrack(track, localStreamRef.current as MediaStream);
     });
 
     pc.onicecandidate = (event) => {
