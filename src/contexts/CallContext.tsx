@@ -159,6 +159,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
       try { pc.close(); } catch { /* noop */ }
     });
     peersRef.current.clear();
+    pendingCandidatesRef.current.clear();
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
     cameraTrackRef.current = null;
@@ -374,6 +375,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
       if (joinedIds.has(peerId)) return;
       try { pc.close(); } catch { /* noop */ }
       peersRef.current.delete(peerId);
+      pendingCandidatesRef.current.delete(peerId);
       setRemoteStreams((prev) => {
         const next = { ...prev };
         delete next[peerId];
