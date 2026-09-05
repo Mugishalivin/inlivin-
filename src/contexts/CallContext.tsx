@@ -120,6 +120,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   const localStreamRef = useRef<MediaStream | null>(null);
   const cameraTrackRef = useRef<MediaStreamTrack | null>(null);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const sessionIdRef = useRef<string | null>(null);
   const joinedRef = useRef(false);
 
@@ -158,6 +159,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
       try { pc.close(); } catch { /* noop */ }
     });
     peersRef.current.clear();
+    pendingCandidatesRef.current.clear();
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
     cameraTrackRef.current = null;
@@ -197,7 +199,8 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
     peersRef.current.set(peerId, pc);
 
     localStreamRef.current?.getTracks().forEach((track) => {
-      pc.addTrack(track, localStreamRef.current as MediaStream);
+      const already = pc.getSenders().some((s) => s.track && s.track.id === track.id);
+      if (!already) pc.addTrack(track, localStreamRef.current as MediaStream);
     });
 
     pc.onicecandidate = (event) => {
@@ -237,22 +240,45 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
     if (!userId || signal.to_user_id !== userId) return;
     const from = signal.from_user_id as string;
     const pc = getPeer(from);
+    const flushCandidates = async () => {
+      const queued = pendingCandidatesRef.current.get(from);
+      if (!queued?.length) return;
+      pendingCandidatesRef.current.delete(from);
+      for (const candidate of queued) {
+        try {
+          await pc.addIceCandidate(candidate);
+        } catch {
+          /* ignore stale candidate */
+        }
+      }
+    };
+
     try {
       if (signal.kind === "offer") {
         await pc.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
+        await flushCandidates();
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await sendSignal(from, "answer", { sdp: answer.sdp, type: answer.type });
       } else if (signal.kind === "answer") {
         if (pc.signalingState === "have-local-offer") {
           await pc.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
+          await flushCandidates();
         }
       } else if (signal.kind === "ice") {
-        await pc.addIceCandidate(signal.payload as RTCIceCandidateInit);
+        const candidate = signal.payload as RTCIceCandidateInit;
+        if (!pc.remoteDescription || !pc.remoteDescription.type) {
+          const queued = pendingCandidatesRef.current.get(from) ?? [];
+          queued.push(candidate);
+          pendingCandidatesRef.current.set(from, queued);
+        } else {
+          await pc.addIceCandidate(candidate);
+        }
       }
     } catch {
       /* ignore late/duplicate signals */
     }
+
   }, [getPeer, sendSignal, userId]);
 
   /* --------------------------- subscriptions --------------------------- */
@@ -349,6 +375,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
       if (joinedIds.has(peerId)) return;
       try { pc.close(); } catch { /* noop */ }
       peersRef.current.delete(peerId);
+      pendingCandidatesRef.current.delete(peerId);
       setRemoteStreams((prev) => {
         const next = { ...prev };
         delete next[peerId];
