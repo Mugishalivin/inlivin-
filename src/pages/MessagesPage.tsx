@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingList, LoadingChat } from "@/components/LoadingSkeletons";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { MediaViewer } from "@/components/MediaViewer";
 import {
   MessageCircle, Search, Send, User, ArrowLeft, Plus, Phone, Video,
   MoreVertical, Paperclip, Trash2, Check, CheckCheck,
