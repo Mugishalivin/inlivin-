@@ -489,7 +489,7 @@ export default function AdminUsersPage() {
                   {/* Quick Actions */}
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" onClick={() => navigate(`/profile/${selectedUser.user_id}`)}>View Profile</Button>
-                    <Button size="sm" variant="outline" onClick={() => { navigate(`/messages?userId=${selectedUser.user_id}`); setDetailOpen(false); }}>Send Message</Button>
+                    <Button size="sm" variant="outline" onClick={() => { navigate(`/messages?chatWith=${selectedUser.user_id}`); setDetailOpen(false); }}>Send Message</Button>
                     <Button size="sm" variant="outline" onClick={() => impersonateUser(selectedUser)} disabled={readOnlyPreview}>Impersonate</Button>
                     <Select value={selectedUser.role || "user"} onValueChange={(v) => { updateRole(selectedUser.user_id, v as any); setSelectedUser({ ...selectedUser, role: v }); }} disabled={readOnlyPreview}>
                       <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>

@@ -3426,6 +3426,10 @@ export type Database = {
         Returns: boolean
       }
       delete_own_comment: { Args: { comment_id: string }; Returns: boolean }
+      get_or_create_direct_conversation: {
+        Args: { _other_user_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
