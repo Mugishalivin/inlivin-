@@ -152,36 +152,12 @@ export default function MessagesPage() {
   const chatWithUserId = searchParams.get("chatWith");
   const startConversation = useMutation({
     mutationFn: async (otherUserId: string) => {
-      // Find an existing 1:1 conversation (exactly the two of us) so replies land in the right thread
-      const { data: myConvos } = await supabase
-        .from("conversation_participants").select("conversation_id").eq("user_id", user!.id);
-      const myIds = (myConvos ?? []).map((row: any) => row.conversation_id as string);
-      if (myIds.length) {
-        const { data: allRows } = await supabase
-          .from("conversation_participants")
-          .select("conversation_id, user_id")
-          .in("conversation_id", myIds);
-        const byConvo = new Map<string, string[]>();
-        (allRows ?? []).forEach((row: any) => {
-          const list = byConvo.get(row.conversation_id) ?? [];
-          list.push(row.user_id);
-          byConvo.set(row.conversation_id, list);
-        });
-        for (const [convoId, members] of byConvo.entries()) {
-          const unique = Array.from(new Set(members));
-          if (unique.length === 2 && unique.includes(user!.id) && unique.includes(otherUserId)) {
-            return convoId;
-          }
-        }
-      }
-      const convoId = crypto.randomUUID();
-      const { error: convoErr } = await supabase.from("conversations").insert({ id: convoId });
-      if (convoErr) throw convoErr;
-      const { error: selfErr } = await supabase.from("conversation_participants").insert({ conversation_id: convoId, user_id: user!.id });
-      if (selfErr) throw selfErr;
-      const { error: otherErr } = await supabase.from("conversation_participants").insert({ conversation_id: convoId, user_id: otherUserId });
-      if (otherErr) throw otherErr;
-      return convoId;
+      const { data, error } = await supabase.rpc("get_or_create_direct_conversation", {
+        _other_user_id: otherUserId,
+      });
+      if (error) throw error;
+      if (!data) throw new Error("Could not open this conversation");
+      return data;
     },
     onSuccess: (convoId) => {
       setActiveConvo(convoId ?? null);
@@ -208,21 +184,23 @@ export default function MessagesPage() {
     queryKey: ["conversations", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data: participations } = await supabase
+      const { data: participations, error: participationsError } = await supabase
         .from("conversation_participants")
         .select("conversation_id, conversations(id, created_at, updated_at)")
         .eq("user_id", user.id)
         .order("joined_at", { ascending: false });
+      if (participationsError) throw participationsError;
 
       if (!participations?.length) return [];
 
       const conversationIds = participations.map((row) => row.conversation_id);
 
-      const { data: allParticipants } = await supabase
+      const { data: allParticipants, error: participantsError } = await supabase
         .from("conversation_participants")
         .select("conversation_id, user_id")
         .in("conversation_id", conversationIds)
         .neq("user_id", user.id);
+      if (participantsError) throw participantsError;
 
       const otherUserIds = Array.from(new Set((allParticipants ?? []).map((p) => p.user_id)));
       const profileMap = new Map<string, { display_name: string | null; avatar_url: string | null; username: string | null }>();
@@ -236,11 +214,12 @@ export default function MessagesPage() {
         });
       }
 
-      const { data: lastMessages } = await supabase
+      const { data: lastMessages, error: messagesError } = await supabase
         .from("messages")
         .select("conversation_id, content, created_at, sender_id")
         .in("conversation_id", conversationIds)
         .order("created_at", { ascending: false });
+      if (messagesError) throw messagesError;
 
       const lastMessageMap = new Map<string, { content: string; created_at: string; sender_id: string }>();
       (lastMessages ?? []).forEach((msg) => {
@@ -306,9 +285,7 @@ export default function MessagesPage() {
     enabled: !!activeConvo,
   });
 
-  // Search users
-  const activeCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-
+  // People discovery must include new and offline accounts; presence is display-only.
   const { data: activeChatSuggestions = [] } = useQuery({
     queryKey: ["active-chat-suggestions", user?.id],
     queryFn: async () => {
@@ -317,9 +294,7 @@ export default function MessagesPage() {
         .from("profiles")
         .select("user_id, display_name, avatar_url, username, last_seen_at")
         .neq("user_id", user.id)
-        .not("last_seen_at", "is", null)
-        .gte("last_seen_at", activeCutoff)
-        .order("last_seen_at", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(8);
       return (data ?? []) as Array<{ user_id: string; display_name: string | null; avatar_url: string | null; username: string | null; last_seen_at?: string | null }>;
     },
@@ -338,16 +313,12 @@ export default function MessagesPage() {
             .from("profiles")
             .select(select)
             .neq("user_id", user!.id)
-            .not("last_seen_at", "is", null)
-            .gte("last_seen_at", activeCutoff)
             .ilike("display_name", `%${term}%`)
             .limit(10),
           supabase
             .from("profiles")
             .select(select)
             .neq("user_id", user!.id)
-            .not("last_seen_at", "is", null)
-            .gte("last_seen_at", activeCutoff)
             .ilike("username", `%${term}%`)
             .limit(10),
         ]);
@@ -380,16 +351,12 @@ export default function MessagesPage() {
             .from("profiles")
             .select(select)
             .neq("user_id", user!.id)
-            .not("last_seen_at", "is", null)
-            .gte("last_seen_at", activeCutoff)
             .ilike("display_name", `%${term}%`)
             .limit(8),
           supabase
             .from("profiles")
             .select(select)
             .neq("user_id", user!.id)
-            .not("last_seen_at", "is", null)
-            .gte("last_seen_at", activeCutoff)
             .ilike("username", `%${term}%`)
             .limit(8),
         ]);
@@ -420,10 +387,7 @@ export default function MessagesPage() {
         .from("profiles")
         .select("user_id, display_name, avatar_url, username, last_seen_at")
         .in("user_id", ids);
-      return ((profiles ?? []) as Array<{ user_id: string; display_name: string | null; avatar_url: string | null; username: string | null; last_seen_at?: string | null }>).filter((profile) => {
-        if (!profile.last_seen_at) return false;
-        return new Date(profile.last_seen_at).getTime() >= new Date(activeCutoff).getTime();
-      });
+      return (profiles ?? []) as Array<{ user_id: string; display_name: string | null; avatar_url: string | null; username: string | null; last_seen_at?: string | null }>;
     },
     enabled: !!forwardMsg && !!user,
   });
@@ -439,16 +403,12 @@ export default function MessagesPage() {
             .from("profiles")
             .select("user_id, display_name, avatar_url, username, last_seen_at")
             .neq("user_id", user!.id)
-            .not("last_seen_at", "is", null)
-            .gte("last_seen_at", activeCutoff)
             .ilike("display_name", `%${term}%`)
             .limit(8),
           supabase
             .from("profiles")
             .select("user_id, display_name, avatar_url, username, last_seen_at")
             .neq("user_id", user!.id)
-            .not("last_seen_at", "is", null)
-            .gte("last_seen_at", activeCutoff)
             .ilike("username", `%${term}%`)
             .limit(8),
         ]);
@@ -473,10 +433,17 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!user) return;
-    const channel = supabase.channel("conversations-list")
+    const channel = supabase.channel(`conversations-list-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" },
         () => queryClient.invalidateQueries({ queryKey: ["conversations"] })
-      ).subscribe();
+      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversation_participants", filter: `user_id=eq.${user.id}` },
+        () => queryClient.invalidateQueries({ queryKey: ["conversations"] })
+      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations" },
+        () => queryClient.invalidateQueries({ queryKey: ["conversations"] })
+      )
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, queryClient]);
 
