@@ -602,7 +602,7 @@ const sendMessage = useMutation({
 
   const hideMessageForMe = useMutation({
     mutationFn: async (msgId: string) => {
-      const { error } = await supabase.from("message_hidden").upsert({ message_id: msgId, user_id: user!.id });
+      const { error } = await supabase.from("message_hidden").upsert({ message_id: msgId, user_id: user!.id }, { ignoreDuplicates: true });
       if (error) throw error;
     },
     onSuccess: () => {
