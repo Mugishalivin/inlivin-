@@ -34,6 +34,8 @@ const EMOJI_REACTIONS = [
 interface ConversationWithDetails {
   id: string;
   updated_at: string;
+  is_group?: boolean | null;
+  group_name?: string | null;
   participants: { user_id: string; profile: { display_name: string | null; avatar_url: string | null; username: string | null } }[];
   lastMessage?: { content: string; created_at: string; sender_id: string };
 }
@@ -191,7 +193,7 @@ export default function MessagesPage() {
       if (!user) return [];
       const { data: participations, error: participationsError } = await supabase
         .from("conversation_participants")
-        .select("conversation_id, conversations(id, created_at, updated_at)")
+        .select("conversation_id, conversations(id, created_at, updated_at, is_group, group_name)")
         .eq("user_id", user.id)
         .order("joined_at", { ascending: false });
       if (participationsError) throw participationsError;
