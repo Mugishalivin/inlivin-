@@ -34,6 +34,8 @@ const EMOJI_REACTIONS = [
 interface ConversationWithDetails {
   id: string;
   updated_at: string;
+  is_group?: boolean | null;
+  group_name?: string | null;
   participants: { user_id: string; profile: { display_name: string | null; avatar_url: string | null; username: string | null } }[];
   lastMessage?: { content: string; created_at: string; sender_id: string };
 }
@@ -101,7 +103,12 @@ export default function MessagesPage() {
   const [voiceNoteUrl, setVoiceNoteUrl] = useState<string | null>(null);
   const [voiceNoteLabel, setVoiceNoteLabel] = useState<string | null>(null);
   const [mutedConvos, setMutedConvos] = useState<Set<string>>(new Set());
-  const [archivedConvos, setArchivedConvos] = useState<Set<string>>(new Set());
+  const [archivedConvos, setArchivedConvos] = useState<Set<string>>(() => {
+    try {
+      const raw = user?.id ? localStorage.getItem(`archived-convos-${user.id}`) : null;
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch { return new Set(); }
+  });
   const [showArchived, setShowArchived] = useState(false);
   const [msgInfoId, setMsgInfoId] = useState<string | null>(null);
   const [showCallSheet, setShowCallSheet] = useState(false);
@@ -186,7 +193,7 @@ export default function MessagesPage() {
       if (!user) return [];
       const { data: participations, error: participationsError } = await supabase
         .from("conversation_participants")
-        .select("conversation_id, conversations(id, created_at, updated_at)")
+        .select("conversation_id, conversations(id, created_at, updated_at, is_group, group_name)")
         .eq("user_id", user.id)
         .order("joined_at", { ascending: false });
       if (participationsError) throw participationsError;
@@ -251,13 +258,30 @@ export default function MessagesPage() {
   });
 
   // Fetch messages
-  const { data: messages = [], isLoading: messagesLoading } = useQuery({
+  const { data: messages = [], isLoading: messagesLoading, isError: messagesError } = useQuery({
     queryKey: ["messages", activeConvo],
     queryFn: async () => {
-      const { data } = await supabase.from("messages").select("*").eq("conversation_id", activeConvo!).order("created_at", { ascending: true });
+      const { data, error } = await supabase.from("messages").select("*").eq("conversation_id", activeConvo!).order("created_at", { ascending: true });
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!activeConvo,
+  });
+
+  // Profiles of everyone who ever sent in this chat (incl. people who later left)
+  const senderIds = useMemo(
+    () => Array.from(new Set(messages.map((m) => m.sender_id))).filter((id) => id !== user?.id).sort(),
+    [messages, user?.id],
+  );
+  const { data: senderProfiles = {} } = useQuery({
+    queryKey: ["message-sender-profiles", senderIds.join(",")],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("user_id, display_name, avatar_url, username").in("user_id", senderIds);
+      const map: Record<string, { display_name: string | null; avatar_url: string | null; username: string | null }> = {};
+      (data ?? []).forEach((p) => { map[p.user_id] = p; });
+      return map;
+    },
+    enabled: senderIds.length > 0,
   });
 
   const { data: hiddenMessageRows = [] } = useQuery({
@@ -578,7 +602,7 @@ const sendMessage = useMutation({
 
   const hideMessageForMe = useMutation({
     mutationFn: async (msgId: string) => {
-      const { error } = await supabase.from("message_hidden").upsert({ message_id: msgId, user_id: user!.id });
+      const { error } = await supabase.from("message_hidden").upsert({ message_id: msgId, user_id: user!.id }, { ignoreDuplicates: true });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -641,15 +665,18 @@ const sendMessage = useMutation({
 
 
   // Delete conversation
+  // "Delete" only tucks the chat away for you — history stays intact for everyone.
   const deleteConversation = useMutation({
-    mutationFn: async (convoId: string) => {
-      const { error } = await supabase.from("conversation_participants").delete().eq("conversation_id", convoId).eq("user_id", user!.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
+    mutationFn: async (convoId: string) => convoId,
+    onSuccess: (convoId) => {
+      setArchivedConvos((prev) => {
+        const next = new Set(prev);
+        next.add(convoId);
+        try { localStorage.setItem(`archived-convos-${user?.id}`, JSON.stringify([...next])); } catch { /* noop */ }
+        return next;
+      });
       setActiveConvo(null);
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      toast.success("Conversation removed");
+      toast.success("Chat moved to Archived — history is kept");
     },
   });
 
@@ -709,6 +736,7 @@ const sendMessage = useMutation({
         next.add(convoId);
         toast.success("Archived");
       }
+      try { localStorage.setItem(`archived-convos-${user?.id}`, JSON.stringify([...next])); } catch { /* noop */ }
       return next;
     });
   }, []);
@@ -957,7 +985,7 @@ const sendMessage = useMutation({
   const visibleMessages = useMemo(() => {
     if (!messages.length) return [];
     const hiddenIds = new Set(hiddenMessageRows.map((row) => row.message_id));
-    return messages.filter((msg) => !msg.deleted_for_all && !hiddenIds.has(msg.id));
+    return messages.filter((msg) => !hiddenIds.has(msg.id));
   }, [messages, hiddenMessageRows]);
 
   const groupedMessages = useMemo(() => {
@@ -992,22 +1020,18 @@ const sendMessage = useMutation({
       return name.toLowerCase().includes(q) || uname.toLowerCase().includes(q);
     });
 
-    // Deduplicate by participant user_id, keeping the most recent conversation
-    const seen = new Map<string, ConversationWithDetails>();
-    filtered.forEach((c) => {
-      const participantId = c.participants[0]?.user_id;
-      if (!participantId) return;
-      const existing = seen.get(participantId);
-      if (!existing || new Date(c.updated_at) > new Date(existing.updated_at)) {
-        seen.set(participantId, c);
-      }
-    });
-
-    return Array.from(seen.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    // Keep every thread (groups, and chats where the other person left) so no history is lost.
+    const activity = (c: ConversationWithDetails) => new Date(c.lastMessage?.created_at || c.updated_at).getTime();
+    return [...filtered].sort((a, b) => activity(b) - activity(a));
   }, [conversations, archivedConvos, showArchived, searchConvos]);
 
   const activeConversation = useMemo(() => (activeConvo ? (conversations as ConversationWithDetails[]).find((c) => c.id === activeConvo) : null), [activeConvo, conversations]);
   const localOtherUser = activeConversation?.participants?.[0] ?? null;
+  const isGroupChat = Boolean(activeConversation?.is_group) || (activeConversation?.participants?.length ?? 0) > 1;
+  const senderOf = (senderId: string) =>
+    senderProfiles[senderId]
+    ?? activeConversation?.participants?.find((p) => p.user_id === senderId)?.profile
+    ?? { display_name: null, avatar_url: null, username: null };
 
   // Incoming calls, WebRTC negotiation and media state now live in CallContext.
 
@@ -1132,6 +1156,13 @@ const sendMessage = useMutation({
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {messagesLoading ? (
             <LoadingChat count={4} />
+          ) : messagesError ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
+              <p>Couldn't load this conversation.</p>
+              <Button size="sm" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["messages", activeConvo] })}>Try again</Button>
+            </div>
+          ) : visibleMessages.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">No messages yet — say hello 👋</div>
           ) : (
             <>
               {Object.entries(filteredGroupedMessages).map(([date, msgs]) => (
@@ -1155,9 +1186,9 @@ const sendMessage = useMutation({
                           className={`flex ${isMe ? "justify-end" : "justify-start"} mb-1 group/msg`}
                         >
                           {!isMe && showAvatar && (
-                            <Link to={`/profile/${localOtherUser?.user_id}`} className="mr-2 mt-1 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
-                              {localOtherUser?.profile?.avatar_url ? (
-                                <img src={otherUser.profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                            <Link to={`/profile/${msg.sender_id}`} title={senderOf(msg.sender_id).display_name || "Artist"} className="mr-2 mt-1 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                              {senderOf(msg.sender_id).avatar_url ? (
+                                <img src={senderOf(msg.sender_id).avatar_url!} alt="" className="w-full h-full object-cover" />
                               ) : (
                                 <User size={12} className="text-muted-foreground" />
                               )}
@@ -1245,15 +1276,22 @@ const sendMessage = useMutation({
                                 </Button>
                               </div>
                             ) : (
-                              <div className={`rounded-2xl px-3.5 py-2 text-sm backdrop-blur-xl ${
-                                isMe ? "rounded-br-md border border-white/15 bg-white/10 text-black shadow-lg dark:text-white" : "rounded-bl-md border border-white/15 bg-white/10 text-black shadow-lg dark:text-white"
+                              <div className={`rounded-2xl px-3.5 py-2 text-sm shadow-sm break-words ${
+                                isMe ? "rounded-br-md bg-primary text-primary-foreground" : "rounded-bl-md border border-border bg-card text-card-foreground"
                               }`}>
-                                <div>{renderMessageContent(msg, { isMine: isMe, avatarUrl: isMe ? profile?.avatar_url : localOtherUser?.profile?.avatar_url, senderName: isMe ? "You" : (localOtherUser?.profile?.display_name || "Artist") })}</div>
-                                <div className="flex items-center gap-1 justify-end mt-0.5">
-                                  <p className="text-[10px] text-black/60 dark:text-white/60">
-                                    {formatTime(msg.created_at)}
+                                {!isMe && showAvatar && isGroupChat && (
+                                  <p className="mb-0.5 text-[11px] font-semibold text-primary">{senderOf(msg.sender_id).display_name || senderOf(msg.sender_id).username || "Artist"}</p>
+                                )}
+                                {msg.deleted_for_all ? (
+                                  <p className="italic opacity-70">This message was deleted</p>
+                                ) : (
+                                  <div>{renderMessageContent(msg, { isMine: isMe, avatarUrl: isMe ? profile?.avatar_url : senderOf(msg.sender_id).avatar_url, senderName: isMe ? "You" : (senderOf(msg.sender_id).display_name || "Artist") })}</div>
+                                )}
+                                <div className="flex items-center gap-1 justify-end mt-0.5 opacity-70">
+                                  <p className="text-[10px]">
+                                    {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                   </p>
-                                  {isMe && <CheckCheck size={12} className="text-black/60 dark:text-white/60" />}
+                                  {isMe && <CheckCheck size={12} />}
                                 </div>
                               </div>
                             )}
