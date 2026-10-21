@@ -74,6 +74,27 @@ export default function UserProfilePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [followMode, setFollowMode] = useState<"followers" | "following" | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const uploadCover = async (file: File) => {
+    if (!user) return;
+    setCoverUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/cover-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const { error: upErr } = await sb.from("profiles").update({ cover_url: data.publicUrl }).eq("user_id", user.id);
+      if (upErr) throw upErr;
+      queryClient.invalidateQueries({ queryKey: ["user-profile", userId] });
+      toast.success("Cover updated");
+    } catch (e: any) {
+      toast.error(e.message || "Couldn't update cover");
+    } finally {
+      setCoverUploading(false);
+    }
+  };
   const [reportOpen, setReportOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
   const [commentText, setCommentText] = useState("");
