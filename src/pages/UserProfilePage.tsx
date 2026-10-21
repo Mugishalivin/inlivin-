@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { ReportDialog } from "@/components/ReportDialog";
 import { UserBadge, BadgeChip, useUserBadge } from "@/components/UserBadge";
+import { FollowListDialog } from "@/components/profile/FollowListDialog";
 
 const categoryIcons: Record<string, any> = { music: Music, visual: Image, video: Video, other: FolderOpen };
 const sb = supabase as any;
@@ -285,7 +286,17 @@ export default function UserProfilePage() {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
         <Card className="border-border/50 overflow-hidden mb-6">
-          <div className="h-24 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/5" />
+          <FollowListDialog userId={userId!} mode={followMode} onClose={() => setFollowMode(null)} />
+          <div className="relative h-36 sm:h-44 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/5">
+            {(profile as any).cover_url && <img src={(profile as any).cover_url} alt="" className="h-full w-full object-cover" />}
+            {user?.id === userId && (
+              <label className="absolute right-3 top-3 cursor-pointer rounded-full bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground backdrop-blur hover:bg-background">
+                {coverUploading ? "Uploading…" : "Change cover"}
+                <input type="file" accept="image/*" className="hidden" disabled={coverUploading}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCover(f); e.target.value = ""; }} />
+              </label>
+            )}
+          </div>
           <CardContent className="p-5 -mt-12">
             <div className="flex flex-row-reverse items-end gap-4 mb-4">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-secondary flex items-center justify-center overflow-hidden ring-4 ring-background shrink-0">
@@ -321,8 +332,8 @@ export default function UserProfilePage() {
                   <ExternalLink size={14} /> Website
                 </a>
               )}
-              <span className="font-medium text-foreground">{followerCount} followers</span>
-              <span className="font-medium text-foreground">{followingCount} following</span>
+              <button type="button" onClick={() => setFollowMode("followers")} className="font-medium text-foreground hover:underline">{followerCount} followers</button>
+              <button type="button" onClick={() => setFollowMode("following")} className="font-medium text-foreground hover:underline">{followingCount} following</button>
             </div>
 
             {profile.skills && profile.skills.length > 0 && (
