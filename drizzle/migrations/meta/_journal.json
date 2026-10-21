@@ -8,6 +8,13 @@
       "when": 1792544524713,
       "tag": "0000_profile_cover",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792544929687,
+      "tag": "0001_badge_types_premium",
+      "breakpoints": true
     }
   ]
 }

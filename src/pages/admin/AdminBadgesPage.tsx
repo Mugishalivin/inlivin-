@@ -87,17 +87,18 @@ export function AdminBadgesPage() {
 
   const awardBadgeMutation = useMutation({
     mutationFn: async (payload: { userId: string; badgeType: string; level: number; reason?: string }) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("creator_badges")
-        .insert({
+        .upsert({
           user_id: payload.userId,
           badge_type: payload.badgeType,
+          category: payload.badgeType === "premium" ? "premium" : payload.badgeType === "verified" ? "verified" : "achievement",
           level: payload.level,
           is_active: true,
           awarded_by: user?.id ?? null,
           awarded_at: new Date().toISOString(),
           reason: payload.reason?.trim() || `Awarded by admin on ${new Date().toLocaleDateString()}`,
-        });
+        }, { onConflict: "user_id,badge_type" });
       if (error) throw error;
     },
     onSuccess: () => {
