@@ -1,0 +1,2 @@
+ALTER TABLE public.creator_badges DROP CONSTRAINT IF EXISTS creator_badges_badge_type_check;
+ALTER TABLE public.creator_badges ADD CONSTRAINT creator_badges_badge_type_check CHECK (badge_type = ANY (ARRAY['verified','premium','top_collaborator','trending_creator','consistent_contributor','community_helper','master_craftsman','rising_star']));
