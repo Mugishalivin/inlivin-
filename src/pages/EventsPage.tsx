@@ -26,7 +26,7 @@ export default function EventsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("upcoming"); // upcoming, past, all
+  const [dateFilter, setDateFilter] = useState("all");
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["events"],
@@ -165,13 +165,13 @@ export default function EventsPage() {
             </SelectContent>
           </Select>
 
-          {(searchQuery || dateFilter !== "upcoming") && (
+          {(searchQuery || dateFilter !== "all") && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
                 setSearchQuery("");
-                setDateFilter("upcoming");
+                setDateFilter("all");
               }}
               className="text-xs"
             >
