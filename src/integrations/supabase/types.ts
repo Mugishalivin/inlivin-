@@ -421,10 +421,15 @@ export type Database = {
           content: string
           created_at: string
           created_by: string | null
+          cta_label: string | null
+          cta_url: string | null
+          expires_at: string | null
           id: string
           is_active: boolean
           media_type: string | null
           media_url: string | null
+          priority: string
+          scheduled_at: string
           title: string
           updated_at: string
         }
@@ -432,10 +437,15 @@ export type Database = {
           content: string
           created_at?: string
           created_by?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean
           media_type?: string | null
           media_url?: string | null
+          priority?: string
+          scheduled_at?: string
           title: string
           updated_at?: string
         }
@@ -443,10 +453,15 @@ export type Database = {
           content?: string
           created_at?: string
           created_by?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean
           media_type?: string | null
           media_url?: string | null
+          priority?: string
+          scheduled_at?: string
           title?: string
           updated_at?: string
         }
