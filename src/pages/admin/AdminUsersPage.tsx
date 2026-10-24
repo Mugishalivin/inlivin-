@@ -198,6 +198,17 @@ export default function AdminUsersPage() {
     toast.success("Role updated");
   };
 
+  const deleteUser = async (profile: any) => {
+    if (readOnlyPreview) return toast.info("Preview mode is read only");
+    const name = profile.display_name || profile.username || "this user";
+    if (!window.confirm(`Permanently delete ${name}? This cannot be undone.`)) return;
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", { body: { userId: profile.user_id } });
+    if (error || (data as any)?.error) return toast.error((data as any)?.error || error?.message || "Delete failed");
+    setDetailOpen(false);
+    queryClient.invalidateQueries({ queryKey: ["admin"] });
+    toast.success(`${name} deleted`);
+  };
+
   const impersonateUser = (profile: any) => {
     if (readOnlyPreview) return toast.info("Preview mode is read only");
     startImpersonation({ userId: profile.user_id, label: profile.display_name || profile.username || profile.user_id });
@@ -394,6 +405,9 @@ export default function AdminUsersPage() {
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-primary" onClick={() => impersonateUser(profile)} disabled={readOnlyPreview} title="Impersonate">
                             <ArrowRightLeft className="h-4 w-4" />
                           </Button>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => deleteUser(profile)} disabled={readOnlyPreview} title="Delete user">
+                            ✕
+                          </Button>
                         </div>
                       </TableCell>
                     </motion.tr>
@@ -491,6 +505,7 @@ export default function AdminUsersPage() {
                     <Button size="sm" variant="outline" onClick={() => navigate(`/profile/${selectedUser.user_id}`)}>View Profile</Button>
                     <Button size="sm" variant="outline" onClick={() => { navigate(`/messages?chatWith=${selectedUser.user_id}`); setDetailOpen(false); }}>Send Message</Button>
                     <Button size="sm" variant="outline" onClick={() => impersonateUser(selectedUser)} disabled={readOnlyPreview}>Impersonate</Button>
+                    <Button size="sm" variant="destructive" onClick={() => deleteUser(selectedUser)} disabled={readOnlyPreview}>Delete user</Button>
                     <Select value={selectedUser.role || "user"} onValueChange={(v) => { updateRole(selectedUser.user_id, v as any); setSelectedUser({ ...selectedUser, role: v }); }} disabled={readOnlyPreview}>
                       <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
