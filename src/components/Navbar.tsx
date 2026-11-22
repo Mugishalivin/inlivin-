@@ -39,7 +39,7 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-2">
           {user ? (
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/feed")} className="gap-2">
               <User size={16} />
               {profile?.display_name || "Dashboard"}
             </Button>
@@ -79,7 +79,7 @@ export function Navbar() {
               ))}
               <div className="flex gap-3 pt-4">
                 {user ? (
-                  <Button variant="hero" size="sm" className="flex-1" onClick={() => { navigate("/dashboard"); setOpen(false); }}>
+                  <Button variant="hero" size="sm" className="flex-1" onClick={() => { navigate("/feed"); setOpen(false); }}>
                     Dashboard
                   </Button>
                 ) : (

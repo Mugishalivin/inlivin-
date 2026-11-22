@@ -38,7 +38,7 @@ const Index = () => {
       } else if ((role === "admin" || authRole === "admin") && adminViewMode === "admin") {
         navigate("/admin/overview", { replace: true });
       } else {
-        navigate("/dashboard", { replace: true });
+        navigate("/feed", { replace: true });
       }
     }
   }, [user, loading, navigate, role, adminViewMode, authRole]);

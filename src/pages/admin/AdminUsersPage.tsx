@@ -213,7 +213,7 @@ export default function AdminUsersPage() {
     if (readOnlyPreview) return toast.info("Preview mode is read only");
     startImpersonation({ userId: profile.user_id, label: profile.display_name || profile.username || profile.user_id });
     setAdminViewMode("user");
-    navigate("/dashboard");
+    navigate("/feed");
   };
 
   const openUserDetail = (profile: any) => {

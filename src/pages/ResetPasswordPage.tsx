@@ -45,7 +45,7 @@ export default function ResetPasswordPage() {
       toast.error(error.message);
     } else {
       toast.success("Password updated successfully!");
-      navigate("/dashboard");
+      navigate("/feed");
     }
   };
 

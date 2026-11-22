@@ -28,7 +28,6 @@ import { Badge } from "@/components/ui/badge";
 import { readUpdatesSeenAt } from "@/lib/update-feed";
 
 const mainNav = [
-  { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Feed", url: "/feed", icon: Globe },
   { title: "Projects", url: "/projects", icon: FolderOpen },
   { title: "Messages", url: "/messages", icon: MessageCircle },
@@ -258,7 +257,7 @@ export function AppSidebar({ onItemSelected }: { onItemSelected?: () => void }) 
       <SidebarContent className="pt-4 flex flex-col h-full">
         {/* Brand */}
         <div className={`px-4 mb-6 shrink-0 ${collapsed ? "text-center" : ""}`}>
-          <a href="/dashboard" className="font-display text-xl font-extrabold text-sidebar-foreground">
+          <a href="/feed" className="font-display text-xl font-extrabold text-sidebar-foreground">
             {collapsed ? (
               <span className="text-primary text-2xl">i.</span>
             ) : (

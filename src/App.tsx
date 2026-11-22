@@ -15,7 +15,6 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import DashboardPage from "./pages/DashboardPage";
 import ContinueAsPage from "./pages/ContinueAsPage";
 import { AdminShell } from "@/components/admin/AdminShell";
 import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
@@ -101,7 +100,7 @@ function AdminAwareDashboardRoute() {
     return <Navigate to="/admin/overview" replace />;
   }
 
-  return <DashboardPage />;
+  return <Navigate to="/feed" replace />;
 }
 
 function AdminRouteGate() {
@@ -110,13 +109,13 @@ function AdminRouteGate() {
   const isAdmin = role === "admin" || authRole === "admin";
 
   if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/feed" replace />;
   }
   if (isAdmin && !adminViewMode) {
     return <Navigate to="/continue-as" replace />;
   }
   if (isAdmin && adminViewMode === "user") {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/feed" replace />;
   }
 
   return <Outlet />;

@@ -1139,7 +1139,7 @@ function UsersPanel({ users, isLoading }: { users: any[]; isLoading: boolean }) 
       label: userProfile.display_name || userProfile.username || userProfile.user_id,
     });
     setAdminViewMode("user");
-    navigate("/dashboard");
+    navigate("/feed");
     void (supabase as any).from("admin_audit_logs").insert([{
       actor_id: authUser?.id,
       actor_role: "admin",

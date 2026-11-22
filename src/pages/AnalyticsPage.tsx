@@ -367,27 +367,6 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <Badge className="mb-3 border-primary/20 bg-primary/10 text-primary">
-            <Sparkles className="mr-1 h-3.5 w-3.5" />
-            Live insight engine
-          </Badge>
-          <h1 className="font-display text-3xl font-black tracking-tight md:text-5xl">
-            <span className="bg-gradient-to-r from-primary via-orange-400 to-accent bg-clip-text text-transparent">
-              Analytics command center
-            </span>
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm text-muted-foreground md:text-base">
-            Visualize your growth, compare content performance, and get clear ideas about what is slowing you down.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5"><Zap className="h-3.5 w-3.5" /> Moving visual elements</Badge>
-          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5"><Target className="h-3.5 w-3.5" /> Problem detection</Badge>
-          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5"><Brain className="h-3.5 w-3.5" /> Action ideas</Badge>
-        </div>
-      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
@@ -403,11 +382,9 @@ export default function AnalyticsPage() {
         </div>
       ) : (
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:w-fit">
+          <TabsList className="grid w-full grid-cols-2 lg:w-fit">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="charts">Charts</TabsTrigger>
-            <TabsTrigger value="problems">Problems</TabsTrigger>
-            <TabsTrigger value="actions">Actions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -562,64 +539,6 @@ export default function AnalyticsPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="problems" className="space-y-6">
-            <div className="grid gap-4 xl:grid-cols-2">
-              {data?.insights.map((insight, index) => (
-                <motion.div key={insight.title} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: index * 0.05 }}>
-                  <Card className="h-full border-border/50">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center justify-between gap-3 font-display text-lg">
-                        <span className="flex items-center gap-2">
-                          <span className={`rounded-full p-2 ${insight.status === "warning" ? "bg-amber-500/10 text-amber-500" : insight.status === "good" ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary"}`}>
-                            {insight.status === "warning" ? <ShieldAlert className="h-4 w-4" /> : insight.status === "good" ? <Sparkles className="h-4 w-4" /> : <Lightbulb className="h-4 w-4" />}
-                          </span>
-                          {insight.title}
-                        </span>
-                        <Badge variant="secondary">{insight.status}</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm">
-                      <p className="text-muted-foreground">{insight.detail}</p>
-                      <div className="rounded-xl border border-border/50 bg-secondary/30 p-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Recommended fix</p>
-                        <p className="mt-1 font-medium text-foreground">{insight.action}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="actions" className="space-y-6">
-            <div className="grid gap-4 xl:grid-cols-2">
-              {data?.recommendations.map((item, index) => (
-                <motion.div key={item.title} initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.35, delay: index * 0.05 }}>
-                  <Card className="border-border/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-                    <CardContent className="p-5">
-                      <div className="flex items-start gap-4">
-                        <div className="rounded-2xl bg-primary/10 p-3 text-primary"><item.icon className="h-5 w-5" /></div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-foreground">{item.title}</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">{item.why}</p>
-                          <div className="mt-3 rounded-xl border border-border/50 bg-secondary/30 p-3 text-sm text-foreground">{item.action}</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-
-            <Card className="border-border/50 bg-gradient-to-br from-primary/5 via-background to-accent/5">
-              <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 font-display text-lg"><Wand2 className="h-5 w-5 text-primary" /> Quick action plan</CardTitle></CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-xl border border-border/50 p-4"><p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">This week</p><p className="mt-2 text-sm font-medium text-foreground">Improve cover images and tighten the first line of each project.</p></div>
-                <div className="rounded-xl border border-border/50 p-4"><p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">This month</p><p className="mt-2 text-sm font-medium text-foreground">Increase comments by adding one direct question to every post.</p></div>
-                <div className="rounded-xl border border-border/50 p-4"><p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Always</p><p className="mt-2 text-sm font-medium text-foreground">Keep a stable posting rhythm so the system can learn what works.</p></div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       )}
 

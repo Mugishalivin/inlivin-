@@ -41,7 +41,7 @@ export function ImpersonationPanel() {
     if (readOnlyPreview) return toast.info("Preview mode is already active");
     startImpersonation({ userId: profile.user_id, label: profile.display_name || profile.username || profile.user_id });
     setAdminViewMode("user");
-    navigate("/dashboard");
+    navigate("/feed");
     void adminDb.from("admin_audit_logs").insert([{
       actor_id: authUser?.id,
       actor_role: "admin",

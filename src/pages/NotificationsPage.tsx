@@ -46,7 +46,7 @@ const typeFallbackRoutes: Record<string, string> = {
   message: "/messages",
   event: "/events",
   collaboration: "/network",
-  report: "/dashboard",
+  report: "/feed",
 };
 
 const getNotificationRoute = (notif: any) => {

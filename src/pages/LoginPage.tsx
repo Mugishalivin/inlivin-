@@ -33,9 +33,9 @@ export default function LoginPage() {
       if (isAdmin && !adminViewMode) {
         navigate("/continue-as", { replace: true });
       } else if (isAdmin) {
-        navigate(adminViewMode === "admin" ? "/admin/overview" : "/dashboard", { replace: true });
+        navigate(adminViewMode === "admin" ? "/admin/overview" : "/feed", { replace: true });
       } else {
-        navigate("/dashboard", { replace: true });
+        navigate("/feed", { replace: true });
       }
     };
 
@@ -58,7 +58,7 @@ export default function LoginPage() {
     } else {
       toast.success("Welcome back!");
       const { data: { user } } = await supabase.auth.getUser();
-      let target = "/dashboard";
+      let target = "/feed";
       if (user) {
         const { data } = await supabase
           .from("user_roles")
@@ -66,7 +66,7 @@ export default function LoginPage() {
           .eq("user_id", user.id)
           .maybeSingle();
         if ((data?.role === "admin" || authRole === "admin") && !adminViewMode) target = "/continue-as";
-        else if (data?.role === "admin" || authRole === "admin") target = adminViewMode === "admin" ? "/admin/overview" : "/dashboard";
+        else if (data?.role === "admin" || authRole === "admin") target = adminViewMode === "admin" ? "/admin/overview" : "/feed";
       }
       navigate(target, { replace: true });
     }
@@ -74,14 +74,14 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     const { error } = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/dashboard",
+      redirect_uri: window.location.origin + "/feed",
     });
     if (error) toast.error("Google sign in failed");
   };
 
   const handleAppleLogin = async () => {
     const { error } = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: window.location.origin + "/dashboard",
+      redirect_uri: window.location.origin + "/feed",
     });
     if (error) toast.error("Apple sign in failed");
   };

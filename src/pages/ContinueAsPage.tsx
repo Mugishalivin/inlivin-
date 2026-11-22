@@ -11,11 +11,11 @@ export default function ContinueAsPage() {
 
   useEffect(() => {
     if (!loading && (!user || role !== "admin")) {
-      navigate("/dashboard", { replace: true });
+      navigate("/feed", { replace: true });
       return;
     }
     if (!loading && user && role === "admin" && adminViewMode) {
-      navigate(adminViewMode === "admin" ? "/admin/overview" : "/dashboard", { replace: true });
+      navigate(adminViewMode === "admin" ? "/admin/overview" : "/feed", { replace: true });
     }
   }, [loading, user, role, adminViewMode, navigate]);
 
@@ -26,7 +26,7 @@ export default function ContinueAsPage() {
   const handleChoice = (mode: "user" | "admin") => {
     stopImpersonation();
     setAdminViewMode(mode);
-    navigate(mode === "admin" ? "/admin/overview" : "/dashboard", { replace: true });
+    navigate(mode === "admin" ? "/admin/overview" : "/feed", { replace: true });
   };
 
   return (

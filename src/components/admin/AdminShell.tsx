@@ -108,7 +108,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           className="w-full text-xs"
           onClick={() => {
             setAdminViewMode("user");
-            navigate("/dashboard");
+            navigate("/feed");
             onNavigate?.();
           }}
         >
