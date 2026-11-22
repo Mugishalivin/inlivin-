@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ type BadgeRow = {
 };
 
 export function AdminBadgesPage() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -104,6 +105,7 @@ export function AdminBadgesPage() {
     onSuccess: () => {
       toast({ title: "Badge awarded", description: "It now shows on the creator's profile." });
       refetchBadges();
+      queryClient.invalidateQueries({ queryKey: ["user-badge"] });
       setIsDialogOpen(false);
       setSelectedUserId("");
       setReason("");
