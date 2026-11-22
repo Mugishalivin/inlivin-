@@ -499,42 +499,6 @@ export default function ContentPipelinePage() {
         </Card>
       ) : null}
 
-      <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <Badge className="mb-3 border-primary/20 bg-primary/10 text-primary">
-            <Layers3 className="mr-1 h-3.5 w-3.5" />
-            Creator Studio
-          </Badge>
-          <h1 className="font-display text-3xl font-black tracking-tight md:text-5xl">
-            <span className="bg-gradient-to-r from-primary via-orange-400 to-accent bg-clip-text text-transparent">
-              Your home base for creating, storing, and planning
-            </span>
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm text-muted-foreground md:text-base">
-            Keep files, ideas, tasks, and schedules in one place so your workspace feels like a real studio you can live in every day.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[
-            { label: "Vault", value: vaultStats.total, icon: FolderOpen },
-            { label: "Tasks", value: vaultStats.taskTotal, icon: ListTodo },
-            { label: "Schedule", value: vaultStats.scheduleTotal, icon: Calendar },
-            { label: "Favorites", value: vaultStats.favorites, icon: Star },
-          ].map((item, index) => (
-            <motion.div
-              key={item.label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="rounded-2xl border border-border/50 bg-card/85 px-4 py-3 text-center shadow-sm backdrop-blur"
-            >
-              <item.icon className="mx-auto h-4 w-4 text-primary" />
-              <p className="mt-2 text-2xl font-black text-foreground">{item.value}</p>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{item.label}</p>
-            </motion.div>
-          ))}
-        </div>
-      </div>
 
       <Tabs defaultValue="vault" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:w-fit">
