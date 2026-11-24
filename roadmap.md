@@ -1,5 +1,11 @@
 # Roadmap
 
+## Rental platform conversion
+- [ ] Replace public experience and sales paths with rental catalog and item details.
+- [ ] Add supplier organization/listing management and persisted rental requests.
+- [ ] Add rental process, about and contact pages; align navigation and account messaging.
+- [ ] Verify listing, filtering, request delivery and supplier responses on desktop/mobile.
+
 - [x] Events: no default filter (show all)
 - [x] Profile: cover image upload
 - [x] Profile: followers/following popup

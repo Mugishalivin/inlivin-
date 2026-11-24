@@ -29,6 +29,13 @@
       "when": 1795378281988,
       "tag": "0003_grant_creator_badges",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795556033736,
+      "tag": "0004_commercial_rental_marketplace",
+      "breakpoints": true
     }
   ]
 }

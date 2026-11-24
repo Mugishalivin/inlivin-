@@ -768,6 +768,44 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_submissions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          subject: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       conversation_participants: {
         Row: {
           conversation_id: string
@@ -2578,6 +2616,185 @@ export type Database = {
         }
         Relationships: []
       }
+      rental_listings: {
+        Row: {
+          available_from: string | null
+          available_until: string | null
+          category: string
+          created_at: string
+          currency: string
+          delivery_available: boolean
+          description: string
+          id: string
+          image_urls: string[]
+          location: string
+          minimum_days: number
+          organization_id: string
+          quantity: number
+          rate: number | null
+          rate_unit: string
+          status: string
+          terms: string
+          title: string
+        }
+        Insert: {
+          available_from?: string | null
+          available_until?: string | null
+          category: string
+          created_at?: string
+          currency?: string
+          delivery_available?: boolean
+          description: string
+          id?: string
+          image_urls?: string[]
+          location: string
+          minimum_days?: number
+          organization_id: string
+          quantity?: number
+          rate?: number | null
+          rate_unit?: string
+          status?: string
+          terms?: string
+          title: string
+        }
+        Update: {
+          available_from?: string | null
+          available_until?: string | null
+          category?: string
+          created_at?: string
+          currency?: string
+          delivery_available?: boolean
+          description?: string
+          id?: string
+          image_urls?: string[]
+          location?: string
+          minimum_days?: number
+          organization_id?: string
+          quantity?: number
+          rate?: number | null
+          rate_unit?: string
+          status?: string
+          terms?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_listings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "rental_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rental_organizations: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          location: string
+          name: string
+          owner_id: string
+          website: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          location: string
+          name: string
+          owner_id: string
+          website?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          location?: string
+          name?: string
+          owner_id?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_organizations_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      rental_requests: {
+        Row: {
+          company: string
+          contact_email: string
+          contact_name: string
+          created_at: string
+          end_date: string
+          id: string
+          listing_id: string
+          message: string
+          quantity: number
+          requester_id: string
+          start_date: string
+          status: string
+          supplier_id: string
+        }
+        Insert: {
+          company?: string
+          contact_email: string
+          contact_name: string
+          created_at?: string
+          end_date: string
+          id?: string
+          listing_id: string
+          message?: string
+          quantity?: number
+          requester_id: string
+          start_date: string
+          status?: string
+          supplier_id: string
+        }
+        Update: {
+          company?: string
+          contact_email?: string
+          contact_name?: string
+          created_at?: string
+          end_date?: string
+          id?: string
+          listing_id?: string
+          message?: string
+          quantity?: number
+          requester_id?: string
+          start_date?: string
+          status?: string
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_requests_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "rental_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rental_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rental_requests_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       scheduled_tasks: {
         Row: {
           configuration: Json | null
@@ -3458,6 +3675,10 @@ export type Database = {
       is_conversation_member: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
+      }
+      respond_rental_request: {
+        Args: { _id: string; _status: string }
+        Returns: undefined
       }
       update_last_seen: { Args: never; Returns: undefined }
     }
