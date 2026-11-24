@@ -98,7 +98,7 @@ export function PostComposerDialog({ open, onOpenChange, onCreated }: { open: bo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create a post</DialogTitle>
           <DialogDescription>Share your work with the inlivin community.</DialogDescription>
@@ -163,7 +163,7 @@ export function PostComposerDialog({ open, onOpenChange, onCreated }: { open: bo
               {files.map((file, index) => (
                 <div key={index} className="relative aspect-square overflow-hidden rounded-lg bg-secondary">
                   {file.type.startsWith("image/") ? (
-                    <img src={URL.createObjectURL(file)} alt={file.name} className="h-full w-full object-cover" />
+                    <img src={URL.createObjectURL(file)} alt={file.name} className="h-full w-full object-contain" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">🎬</div>
                   )}

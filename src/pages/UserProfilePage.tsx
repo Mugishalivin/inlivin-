@@ -64,8 +64,8 @@ const splitPostCaption = (caption: string | null) => {
   if (!text) return { title: "Untitled post", body: "" };
   const [first, ...rest] = text.split(/\n\s*\n/);
   return {
-    title: first.slice(0, 90),
-    body: rest.length > 0 ? rest.join("\n\n") : text,
+    title: first,
+    body: rest.join("\n\n"),
   };
 };
 
@@ -425,18 +425,18 @@ export default function UserProfilePage() {
                       {firstMedia ? (
                         <div className="aspect-video bg-muted">
                           {firstMedia.media_type === "video" ? (
-                            <video src={firstMedia.media_url} className="h-full w-full object-cover" muted playsInline />
+                            <video src={firstMedia.media_url} className="h-full w-full object-contain" muted playsInline />
                           ) : (
-                            <img src={firstMedia.media_url} alt="" className="h-full w-full object-cover" />
+                            <img src={firstMedia.media_url} alt={firstMedia.alt_text || post.parsed.title} className="h-full w-full object-contain" />
                           )}
                         </div>
                       ) : (
-                        <div className={`flex aspect-video justify-center p-5 ${textThemes[post.textStyle.theme]} ${textAlignClasses[post.textStyle.align]}`}>
+                        <div className={`flex min-h-48 justify-center break-words p-5 ${textThemes[post.textStyle.theme]} ${textAlignClasses[post.textStyle.align]}`}>
                           <div className="max-w-[92%]">
                             <p className={`font-display font-extrabold leading-tight ${textSizeClasses[post.textStyle.size]}`}>
                               {post.parsed.title}
                             </p>
-                            {post.parsed.body && <p className="mt-2 line-clamp-3 text-xs opacity-90">{post.parsed.body}</p>}
+                            {post.parsed.body && <p className="mt-2 whitespace-pre-wrap text-xs opacity-90">{post.parsed.body}</p>}
                           </div>
                         </div>
                       )}
@@ -464,14 +464,14 @@ export default function UserProfilePage() {
                             )}
                           </div>
                         </div>
-                        <h3 className="font-display text-sm font-bold leading-tight line-clamp-2">{post.parsed.title}</h3>
+                        <h3 className="whitespace-pre-wrap break-words font-display text-sm font-bold leading-tight">{post.parsed.title}</h3>
                         {post.parsed.body && (
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground line-clamp-3">{post.parsed.body}</p>
+                          <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">{post.parsed.body}</p>
                         )}
                         {post.publicTags?.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-1.5">
-                            {post.publicTags.slice(0, 4).map((tag: string) => (
-                              <span key={tag} className="rounded-full bg-secondary px-2 py-1 text-[10px] text-secondary-foreground">
+                            {post.publicTags.map((tag: string) => (
+                              <span key={tag} className="max-w-full break-words rounded-full bg-secondary px-2 py-1 text-[10px] text-secondary-foreground">
                                 #{tag}
                               </span>
                             ))}
@@ -538,45 +538,47 @@ export default function UserProfilePage() {
       />
 
       <Dialog open={!!selectedPost} onOpenChange={(open) => !open && setSelectedPost(null)}>
-        <DialogContent className="max-w-4xl overflow-hidden p-0">
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto p-0">
           {selectedPost && (
-            <div className="grid max-h-[86vh] overflow-hidden md:grid-cols-[1.15fr_0.85fr]">
-              <div className="relative min-h-[320px] bg-black md:min-h-[640px]">
+            <div className="grid min-w-0 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+              <div className="min-w-0 space-y-3 bg-muted p-3">
                 {selectedPost.media?.length > 0 ? (
-                  selectedPost.media[0].media_type === "video" ? (
+                  selectedPost.media.map((media: any, index: number) => media.media_type === "video" ? (
                     <video
-                      src={selectedPost.media[0].media_url}
-                      className="h-full max-h-[86vh] w-full object-contain"
+                      key={media.id || index}
+                      src={media.media_url}
+                      className="block max-h-[65dvh] w-full object-contain"
                       controls
                       playsInline
                     />
                   ) : (
                   <img
-                    src={selectedPost.media[0].media_url}
-                    alt=""
-                    className="h-full max-h-[86vh] w-full object-cover"
+                    key={media.id || index}
+                    src={media.media_url}
+                    alt={media.alt_text || `Post image ${index + 1}`}
+                    className="block max-h-[65dvh] w-full object-contain"
                   />
-                  )
+                  ))
                 ) : (
-                  <div className={`flex h-full justify-center p-8 ${textThemes[selectedPost.textStyle.theme]} ${textAlignClasses[selectedPost.textStyle.align]}`}>
+                  <div className={`flex min-h-48 justify-center whitespace-pre-wrap break-words p-6 ${textThemes[selectedPost.textStyle.theme]} ${textAlignClasses[selectedPost.textStyle.align]}`}>
                     <div className="max-w-[92%]">
                       <p className={`font-display font-extrabold leading-tight ${textSizeClasses[selectedPost.textStyle.size]}`}>
                         {selectedPost.parsed.title}
                       </p>
-                      {selectedPost.parsed.body && <p className="mt-4 line-clamp-5 text-sm opacity-90">{selectedPost.parsed.body}</p>}
+                      {selectedPost.parsed.body && <p className="mt-4 text-sm opacity-90">{selectedPost.parsed.body}</p>}
                     </div>
                   </div>
                 )}
-                <div className="absolute left-4 top-4 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-foreground backdrop-blur">
+                <div className="text-xs font-semibold text-muted-foreground">
                   {selectedPost.post_type || "post"}
                 </div>
               </div>
 
-              <div className="flex max-h-[86vh] flex-col bg-background">
-                <DialogHeader className="border-b border-border p-5">
+              <div className="flex min-w-0 flex-col bg-background">
+                <DialogHeader className="border-b border-border p-5 pr-12">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="h-11 w-11 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-secondary">
                         {profile.avatar_url ? (
                           <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
                         ) : (
@@ -585,32 +587,29 @@ export default function UserProfilePage() {
                           </div>
                         )}
                       </div>
-                      <div>
-                        <DialogTitle className="font-display text-lg leading-tight">{profile.display_name || "Artist"}</DialogTitle>
+                      <div className="min-w-0">
+                        <DialogTitle className="break-words font-display text-lg leading-tight">{profile.display_name || "Artist"}</DialogTitle>
                         <p className="text-xs text-muted-foreground">
                           {new Date(selectedPost.created_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedPost(null)}>
-                      <X size={16} />
-                    </Button>
                   </div>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto p-5">
-                  <h2 className="font-display text-2xl font-extrabold leading-tight text-foreground">
+                <div className="min-w-0 flex-1 p-5">
+                  <h2 className="whitespace-pre-wrap break-words font-display text-2xl font-extrabold leading-tight text-foreground">
                     {selectedPost.parsed.title}
                   </h2>
                   {selectedPost.parsed.body && (
-                    <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                    <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
                       {selectedPost.parsed.body}
                     </p>
                   )}
                   {selectedPost.publicTags?.length > 0 && (
                     <div className="mt-5 flex flex-wrap gap-2">
                       {selectedPost.publicTags.map((tag: string) => (
-                        <span key={tag} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                        <span key={tag} className="max-w-full break-words rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                           #{tag}
                         </span>
                       ))}
@@ -656,7 +655,7 @@ export default function UserProfilePage() {
                                   </button>
                                 )}
                               </div>
-                              <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-muted-foreground">{comment.content}</p>
+                              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-muted-foreground">{comment.content}</p>
                             </div>
                           </div>
                         ))}

@@ -32,6 +32,7 @@ type FeedItem = {
   title: string;
   body: string | null;
   image: string | null;
+  media: { media_url: string; media_type: string; alt_text?: string }[];
   created_at: string;
   user_id: string;
   tags: string[];
@@ -97,8 +98,7 @@ const splitTitleFromCaption = (caption: string | null) => {
   const text = caption?.trim() || "";
   if (!text) return { title: "Untitled post", body: null };
   const [first, ...rest] = text.split(/\n\s*\n/);
-  if (rest.length === 0) return { title: first.slice(0, 80), body: text };
-  return { title: first.slice(0, 80), body: rest.join("\n\n") };
+  return { title: first, body: rest.join("\n\n") || null };
 };
 
 export default function FeedPage() {
@@ -165,6 +165,7 @@ export default function FeedPage() {
           title: parsed.title,
           body: parsed.body,
           image: firstMedia?.media_url || null,
+          media: mediaMap.get(post.id) || [],
           created_at: post.created_at,
           user_id: post.user_id,
           tags: publicTags(tags),
@@ -180,6 +181,7 @@ export default function FeedPage() {
         title: project.title || "Untitled project",
         body: project.description || null,
         image: project.cover_url || null,
+        media: project.cover_url ? [{ media_url: project.cover_url, media_type: "image" }] : [],
         created_at: project.created_at,
         user_id: project.user_id,
         tags: project.tags || [],
@@ -400,51 +402,53 @@ function FeedCard({ item, profile, onOpen, compact = false }: { item: FeedItem; 
       whileHover={{ y: -4 }}
       className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"
     >
-      <button type="button" onClick={onOpen} className="block w-full text-left">
-        <div className={`relative bg-muted ${compact ? "aspect-[4/3]" : "aspect-video"}`}>
+      <div className="min-w-0 text-left">
+        <div className="flex flex-wrap gap-2 p-3">
+          <Badge className="capitalize">{item.kind}</Badge>
+          <Badge variant="secondary">{timeAgo(item.created_at)}</Badge>
+        </div>
+        <div className="bg-muted">
           {item.image ? (
-            item.group === "Reels" ? (
-              <video src={item.image} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" muted playsInline />
+            <div className="space-y-2">
+            {item.media.map((media, index) => media.media_type === "video" ? (
+              <video key={index} src={media.media_url} className="block max-h-[65dvh] w-full object-contain" controls playsInline preload="metadata" />
             ) : (
-              <img src={item.image} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-            )
+              <img key={index} src={media.media_url} alt={media.alt_text || item.title} className="block max-h-[65dvh] w-full object-contain" loading="lazy" />
+            ))}
+            </div>
           ) : (
             item.kind === "post" ? (
-              <div className={`flex h-full justify-center p-5 ${textThemes[item.textStyle.theme]} ${textAlignClasses[item.textStyle.align]}`}>
+              <div className={`flex min-h-48 justify-center whitespace-pre-wrap break-words p-5 ${textThemes[item.textStyle.theme]} ${textAlignClasses[item.textStyle.align]}`}>
                 <div className="max-w-[92%]">
                   <p className={`font-display font-extrabold leading-tight ${textSizeClasses[item.textStyle.size]}`}>{item.title}</p>
-                  {item.body && <p className="mt-2 line-clamp-3 text-xs opacity-90">{item.body}</p>}
+                  {item.body && <p className="mt-2 text-sm opacity-90">{item.body}</p>}
                 </div>
               </div>
             ) : (
-              <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
+              <div className="flex min-h-48 items-center justify-center bg-muted">
                 <ImageIcon className="h-10 w-10 text-primary" />
               </div>
             )
           )}
-          <div className="absolute left-3 top-3 flex gap-2">
-            <Badge className="capitalize">{item.kind}</Badge>
-            <Badge variant="secondary">{timeAgo(item.created_at)}</Badge>
-          </div>
         </div>
         <div className="space-y-3 p-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-secondary">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary">
               {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : <User className="h-4 w-4 text-muted-foreground" />}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
+              <p className="break-words text-sm font-semibold text-foreground">{displayName}</p>
               <p className="text-xs text-muted-foreground">{item.group}</p>
             </div>
           </div>
           <div>
-            <h3 className="font-display text-lg font-bold leading-tight line-clamp-2">{item.title}</h3>
-            {item.body && <p className="mt-1 text-sm text-muted-foreground line-clamp-3">{item.body}</p>}
+            <h3 className="whitespace-pre-wrap break-words font-display text-lg font-bold leading-tight">{item.title}</h3>
+            {item.body && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">{item.body}</p>}
           </div>
           {item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {item.tags.slice(0, 4).map((tag) => (
-                <span key={tag} className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+              {item.tags.map((tag) => (
+                <span key={tag} className="max-w-full break-words rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
                   #{tag}
                 </span>
               ))}
@@ -455,13 +459,13 @@ function FeedCard({ item, profile, onOpen, compact = false }: { item: FeedItem; 
               <Calendar className="h-3.5 w-3.5" />
               {new Date(item.created_at).toLocaleDateString()}
             </span>
-            <span className="flex items-center gap-1 font-semibold text-primary">
+            <Button variant="ghost" size="sm" onClick={onOpen}>
               Open
               <ArrowRight className="h-3.5 w-3.5" />
-            </span>
+            </Button>
           </div>
         </div>
-      </button>
+      </div>
     </motion.article>
   );
 }
